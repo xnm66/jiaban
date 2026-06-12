@@ -1,0 +1,4154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+	<title>记加班 · 不错过每一份努力</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+			-webkit-tap-highlight-color: transparent;
+			-webkit-touch-callout: none;
+			-webkit-user-select: none;
+			user-select: none;
+		}
+		input, textarea {
+			-webkit-touch-callout: default;
+			-webkit-user-select: text;
+			user-select: text;
+		}
+		body {
+			background: #F7F7F7;
+			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			padding: 16px 12px 80px;
+			color: #1f2d3d;
+			min-height: 100vh;
+		}
+		.container { max-width: 500px; margin: 0 auto; position: relative; overflow-x: hidden; }
+
+		.stats-bar {
+			background: linear-gradient(135deg, #66b3ff 0%, #3388ee 100%);
+			border-radius: 16px;
+			margin-bottom: 16px;
+			box-shadow: 0 4px 12px rgba(102,179,255,0.3);
+			display: flex;
+			overflow: hidden;
+			position: relative;
+		}
+		.stat-item {
+			flex: 1;
+			text-align: center;
+			padding: 14px 6px;
+			cursor: pointer;
+			transition: background 0.1s ease;
+			position: relative;
+		}
+		.stat-item:active { background: rgba(255,255,255,0.15); }
+		.stat-item:not(:last-child)::after {
+			content: '';
+			position: absolute;
+			right: 0;
+			top: 20%;
+			height: 60%;
+			width: 1px;
+			background: rgba(255,255,255,0.3);
+		}
+		.stat-value {
+			font-size: 1.2rem;
+			font-weight: 700;
+			color: white;
+			margin-bottom: 4px;
+		}
+		.stat-value strong { color: white; opacity: 0.9; }
+		.stat-unit {
+			font-size: 0.6rem;
+			font-weight: 500;
+			color: rgba(255,255,255,0.7);
+			margin-left: 2px;
+		}
+		.stat-label {
+			font-size: 0.65rem;
+			font-weight: 500;
+			color: rgba(255,255,255,0.8);
+		}
+		
+		/* 模式标签 - 右下角小胶囊 */
+		.mode-badge {
+			position: absolute;
+			bottom: 5px;
+			right: 10px;
+			font-size: 0.55rem;
+			background: rgba(0,0,0,0.3);
+			padding: 2px 6px;
+			border-radius: 10px;
+			color: white;
+			z-index: 10;
+		}
+
+		.calendar-card { 
+			background: #e9ecef;
+			border-radius: 10px;
+			overflow: hidden;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+		}
+		.title-bar { 
+			display: flex; 
+			justify-content: space-between; 
+			align-items: center; 
+			background: #fafbfc; 
+			padding: 8px 16px; 
+		}
+		.mini-title { 
+			font-size: 0.7rem; 
+			font-weight: 500; 
+			color: #909399; 
+			letter-spacing: 0.5px; 
+		}
+		.mini-title .small-text {
+			font-size: 0.5rem;
+		}
+		.month-nav { display: flex; align-items: center; gap: 8px; }
+		.month-nav-btn { 
+			background: transparent; 
+			border: none; 
+			font-size: 20px; 
+			cursor: pointer; 
+			color: #6c757d; 
+			width: 32px; 
+			height: 32px; 
+			display: inline-flex; 
+			align-items: center; 
+			justify-content: center; 
+			border-radius: 16px;
+			margin-top: -5px; 
+		}
+		.month-nav-btn:active { background: rgba(0,0,0,0.1); }
+		.current-month { 
+			font-size: 0.85rem; 
+			font-weight: 600; 
+			color: #495057; 
+			cursor: pointer; 
+			padding: 4px 8px; 
+			border-radius: 16px;
+		}
+		.current-month:active { background: rgba(0,0,0,0.1); }
+		
+		.week-row { 
+			display: flex; 
+			justify-content: space-evenly; 
+			background: #fff; 
+			padding: 8px 0; 
+		}
+		.weekday { 
+			font-size: 0.7rem; 
+			font-weight: 600; 
+			color: #606266; 
+			width: 14.28%; 
+			text-align: center; 
+		}
+		
+		.cal-grid { 
+			display: grid; 
+			grid-template-columns: repeat(7, 1fr);
+			background: #fff;
+		}
+		.cal-day { 
+			aspect-ratio: 1 / 1;
+			display: flex; 
+			flex-direction: column; 
+			align-items: center; 
+			justify-content: center; 
+			cursor: pointer; 
+			position: relative; 
+			border-radius: 8px; 
+			margin: 2px; 
+			background: #fff; 
+			transition: all 0.1s;
+		}
+		.cal-day:active { transform: scale(0.96); background: #f0f2f5; }
+		.cal-day.empty { background: transparent; cursor: default; }
+		.cal-day.empty:active { transform: none; }
+		.cal-day.has-record { background: #ecf5ff; }
+		.cal-day.selected { box-shadow: inset 0 0 0 1.5px #66b3ff; }
+		.cal-day.multi-selected {
+			background: #e6f5ff;
+			box-shadow: inset 0 0 0 1.5px #99c9ff;
+		}
+		.day-number { 
+			font-size: 1rem; 
+			font-weight: 500; 
+			color: #2c3e50; 
+			text-align: center; 
+			position: relative;
+		}
+		.day-number.today-number { 
+			color: #66b3ff; 
+			font-size: 1rem; 
+			font-weight: 700; 
+			transform: scale(1.2); 
+			display: inline-block; 
+		}
+		
+		/* 备注圆点 - 绿色，右上角，稍微往内缩 */
+		.remark-dot {
+			position: absolute;
+			top: 4px;
+			right: 4px;
+			width: 7px;
+			height: 7px;
+			background-color: #81c784;
+			border-radius: 50%;
+			z-index: 5;
+		}
+		
+		.day-sub { 
+			font-size: 0.65rem; 
+			color: #b0b3b8; 
+			text-align: center; 
+			margin-top: 4px; 
+			white-space: nowrap; 
+			overflow: visible;
+			padding: 0 2px;
+			line-height: 1.2;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 2px;
+		}
+		
+		.shift-tag { 
+			font-size: 0.6rem; 
+			font-weight: 500; 
+			padding: 1px 4px; 
+			border-radius: 4px; 
+			display: inline-block; 
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			min-width: 46px;
+			max-width: 50px;
+			text-align: center;
+			vertical-align: middle;
+			box-sizing: border-box;
+		}
+		.shift-tag.day { background: #66b3ff; color: white; }
+		.shift-tag.night { background: #6c757d; color: white; }
+		.shift-tag.rest { background: #b0b3b8; color: white; }
+		.shift-tag.vacation { background: #b0b3b8; color: white; }
+		.shift-tag.personal { background: #f5b7b1; color: white; }
+		.shift-tag.sick { background: #c39bd3; color: white; }
+		.shift-tag.paid { background: #f5a623; color: white; }
+		.shift-tag.salary { background: #f5a623; color: white; }
+		
+		.holiday-badge { 
+			position: absolute; 
+			top: 2px; 
+			right: 4px; 
+			font-size: 0.55rem; 
+			font-weight: 600; 
+			color: #f56c6c; 
+		}
+		.workday-badge { 
+			position: absolute; 
+			top: 2px; 
+			right: 4px; 
+			font-size: 0.55rem; 
+			font-weight: 600; 
+			color: #409eff; 
+		}
+		.shift-badge {
+			position: absolute;
+			top: 2px;
+			right: 4px;
+			font-size: 0.55rem;
+			font-weight: 600;
+			color: #ff4444;
+			background: transparent;
+			padding: 0;
+			z-index: 10;
+		}
+		
+		@media (max-width: 440px) {
+			.day-number { font-size: 0.9rem; }
+			.day-sub { font-size: 0.6rem; margin-top: 2px; gap: 1px; }
+			.shift-tag { 
+				font-size: 0.55rem; 
+				padding: 1px 3px;
+				min-width: 42px;
+				max-width: 46px;
+			}
+			.remark-dot { width: 6px; height: 6px; top: 3px; right: 3px; }
+			.holiday-badge, .workday-badge, .shift-badge { top: 2px; right: 4px; font-size: 0.5rem; }
+		}
+		
+		.bottom-detail { 
+			padding: 10px 14px; 
+			border-top: 1px solid #e4e7ed; 
+			background: #fff; 
+		}
+		.detail-row { 
+			display: flex; 
+			align-items: center; 
+			justify-content: space-between; 
+			width: 100%; 
+			position: relative;
+		}
+		.left-info { 
+			width: 80px; 
+			flex-shrink: 0; 
+			text-align: left; 
+			background: #fff;
+		}
+		.gregorian-date { font-size: 0.85rem; font-weight: 700; color: #2c3e50; }
+		.bottom-lunar-date { font-size: 0.55rem; color: #909399; margin-top: 2px; }
+		.center-info { 
+			position: absolute;
+			left: 50%;
+			transform: translateX(-50%);
+			display: flex; 
+			align-items: center; 
+			justify-content: center; 
+			gap: 22px; 
+			white-space: nowrap;
+			background: #fff;
+		}
+		.center-info span, 
+		.center-info .hours-value, 
+		.center-info .amount-value, 
+		.center-info .no-record-text {
+			font-size: 1.1rem;
+			font-weight: 400;
+			color: #4a5b6e;
+			line-height: 1.4;
+		}
+		.center-info .hours-value, .center-info .amount-value { color: #66b3ff; }
+		.action-btn, .edit-btn {
+			flex-shrink: 0;
+			font-size: 0.68rem;
+			padding: 5px 12px;
+			background: #fff;
+		}
+		.action-btn { background: #66b3ff; border: none; border-radius: 10px; color: #fff; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+		.action-btn:active { transform: scale(0.94); }
+		.edit-btn { background: transparent; border: 1px solid #66b3ff; border-radius: 10px; color: #66b3ff; }
+		.edit-btn:active { transform: scale(0.94); background: rgba(102,179,255,0.1); }
+		
+		@media (max-width: 440px) {
+			.center-info { gap: 14px; }
+			.center-info span, 
+			.center-info .hours-value, 
+			.center-info .amount-value, 
+			.center-info .no-record-text { font-size: 0.96rem; }
+			.left-info { width: 72px; }
+		}
+		
+		.bottom-nav {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			background: #fff;
+			display: flex;
+			border-top: 0.5px solid #e9ecef;
+			max-width: 500px;
+			margin: 0 auto;
+			width: 100%;
+			z-index: 100;
+			transition: opacity 0.2s ease;
+		}
+		.bottom-nav.multi-select-mode {
+			opacity: 0.5;
+			pointer-events: none;
+		}
+		.nav-item {
+			flex: 1;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+			padding: 12px 0;
+			cursor: pointer;
+			color: #909399;
+			font-size: 0.85rem;
+			font-weight: 500;
+		}
+		.nav-item.active {
+			color: #66b3ff;
+			background: #ecf5ff;
+		}
+		.nav-item:active { transform: scale(0.98); }
+		.nav-icon { font-size: 1.2rem; }
+		
+		.page { display: none; }
+		.page.active-page { display: block; }
+		
+		.settings-container {
+			padding: 0 0 16px 0;
+		}
+		.settings-card {
+			background: #fff;
+			border-radius: 12px;
+			margin-bottom: 12px;
+			overflow: hidden;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+		}
+		.settings-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 14px 16px;
+			border-bottom: 1px solid #f0f0f0;
+			cursor: pointer;
+		}
+		.settings-item:active { background: #f5f7fa; }
+		.settings-item:last-child { border-bottom: none; }
+		.settings-label {
+			font-size: 0.85rem;
+			font-weight: 500;
+			color: #2c3e50;
+		}
+		.settings-value {
+			font-size: 0.85rem;
+			color: #66b3ff;
+			font-weight: 600;
+			text-align: right;
+			margin-right: 10px;
+		}
+		.settings-arrow {
+			color: #c0c4cc;
+		}
+		.settings-header {
+			padding: 0 16px 8px;
+			font-size: 0.7rem;
+			color: #909399;
+			font-weight: 500;
+		}
+		
+		.income-display-card {
+			background: linear-gradient(135deg, #66b3ff 0%, #3388ee 100%);
+			border-radius: 16px;
+			padding: 20px 16px;
+			margin-bottom: 20px;
+			color: white;
+			box-shadow: 0 4px 12px rgba(102,179,255,0.3);
+			transition: all 0.2s ease;
+			cursor: pointer;
+			touch-action: pan-y pinch-zoom;
+		}
+		.income-display-card:active { transform: scale(0.98); }
+		.income-display-label {
+			font-size: 0.7rem;
+			opacity: 0.85;
+			margin-bottom: 8px;
+			text-align: center;
+		}
+		.income-display-amount {
+			font-size: 2rem;
+			font-weight: 700;
+			margin-bottom: 12px;
+			text-align: center;
+		}
+		.income-display-details {
+			display: flex;
+			justify-content: space-between;
+			flex-wrap: wrap;
+			gap: 8px;
+			font-size: 0.65rem;
+			opacity: 0.9;
+		}
+		.income-display-details span {
+			flex: 1;
+			text-align: center;
+			min-width: 70px;
+		}
+		.income-display-details span strong {
+			font-size: 0.85rem;
+			display: block;
+		}
+		.year-stats-grid {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 12px 8px;
+			margin-top: 8px;
+		}
+		.year-stat-item {
+			text-align: center;
+		}
+		.year-stat-value {
+			font-size: 0.9rem;
+			font-weight: 700;
+			display: block;
+		}
+		.year-stat-label {
+			font-size: 0.55rem;
+			opacity: 0.8;
+		}
+		
+		.subded-card {
+			background: #fff;
+			border-radius: 12px;
+			margin-bottom: 12px;
+			overflow: hidden;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+		}
+		.subded-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 16px;
+			background: #fafbfc;
+			border-bottom: 1px solid #eef2f6;
+		}
+		.subded-header h3 {
+			font-size: 0.75rem;
+			font-weight: 600;
+			color: #1f2d3d;
+		}
+		.subded-header-total {
+			font-size: 0.75rem;
+			font-weight: 700;
+		}
+		.subded-header-total.positive { color: #2e7d32; }
+		.subded-header-total.negative { color: #c62828; }
+		.subded-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 16px;
+			border-bottom: 1px solid #f0f2f5;
+			cursor: pointer;
+		}
+		.subded-item:active { background: #f5f7fa; }
+		.subded-item:last-child { border-bottom: none; }
+		.subded-name { font-size: 0.7rem; color: #606266; }
+		.subded-amount { 
+			font-size: 0.75rem; 
+			font-weight: 500;
+		}
+		.add-link-btn {
+			display: block;
+			text-align: center;
+			padding: 12px;
+			color: #66b3ff;
+			font-size: 0.7rem;
+			cursor: pointer;
+			background: #fff;
+			border: none;
+			width: 100%;
+			border-top: 1px solid #f0f2f5;
+		}
+		.add-link-btn:active { background: #f5f7fa; }
+		
+		.today-fab { 
+			position: fixed; 
+			bottom: 150px; 
+			right: calc(50% - 250px + 16px);
+			width: 48px; 
+			height: 48px; 
+			background: #66b3ff; 
+			border: none; 
+			border-radius: 48px;
+			color: white; 
+			font-size: 1rem; 
+			font-weight: 600; 
+			cursor: pointer; 
+			display: flex;
+			align-items: center; 
+			justify-content: center; 
+			box-shadow: 0 2px 8px rgba(0,0,0,0.15); 
+			z-index: 99;
+		}
+		.today-fab:active { transform: scale(0.92); }
+		.today-fab.hide { display: none; }
+		@media (max-width: 500px) { .today-fab { right: 16px; } }
+		
+		.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #2c3e50; color: #fff; padding: 6px 16px; border-radius: 25px; font-size: 0.7rem; z-index: 1200; display: none; white-space: nowrap; }
+		
+		.footer-section { margin-top: 30px; text-align: center; }
+		.footer-title { cursor: pointer; display: inline-block; }
+		.footer-title:active { transform: scale(0.97); }
+		.footer-title h1 { font-size: 1.2rem; font-weight: 600; color: #66b3ff; }
+		.footer-sub { 
+			font-size: 0.67rem; 
+			color: #909399; 
+			margin-top: 8px; 
+		}
+		
+		.modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
+		.date-picker-modal { width: 260px; background: #fff; border-radius: 10px; overflow: hidden; }
+		.pay-modal { width: 90%; max-width: 340px; background: #fff; border-radius: 10px; overflow: hidden; }
+		.modal-header { padding: 14px 18px 6px; font-size: 0.9rem; font-weight: 600; color: #2c3e50; border-bottom: 1px solid #e4e7ed; display: flex; justify-content: space-between; }
+		.modal-body { padding: 14px 18px; }
+		.year-month-input { display: flex; gap: 10px; margin-bottom: 16px; justify-content: center; }
+		.year-month-input input { padding: 8px 0; border-radius: 25px; border: 1px solid #e4e7ed; text-align: center; font-size: 0.85rem; width: 100px; }
+		.modal-buttons { display: flex; gap: 10px; margin-top: 6px; }
+		.modal-buttons button { flex: 1; padding: 8px; border-radius: 25px; border: none; font-weight: 600; font-size: 0.75rem; cursor: pointer; }
+		.modal-buttons button:active { transform: scale(0.96); }
+		.cancel-modal { background: #f5f7fa; color: #909399; }
+		.save-modal { background: #66b3ff; color: white; }
+		.pay-params { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e4e7ed; }
+		.param-row { margin-bottom: 10px; }
+		.param-row label { font-size: 0.6rem; color: #909399; display: block; margin-bottom: 3px; }
+		.param-row input { width: 100%; padding: 6px 10px; border-radius: 25px; border: 1px solid #e4e7ed; font-size: 0.75rem; }
+		.pay-modal-buttons { display: flex; gap: 10px; padding: 10px 14px 16px; }
+		.pay-modal-buttons button { flex: 1; padding: 8px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; }
+		.pay-modal-buttons button:active { transform: scale(0.96); }
+		.pay-save { background: #66b3ff; color: white; }
+		.pay-cancel { background: #f5f7fa; color: #909399; }
+		
+		.detail-modal-mask {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0,0,0,0.5);
+			z-index: 1100;
+			display: none;
+			justify-content: center;
+			align-items: center;
+		}
+		.detail-modal {
+			width: 85%;
+			max-width: 340px;
+			background: #fff;
+			border-radius: 16px;
+			overflow: hidden;
+		}
+		.detail-modal-header {
+			padding: 16px 18px 10px;
+			font-size: 1rem;
+			font-weight: 700;
+			color: #1f2d3d;
+			border-bottom: 1px solid #e9ecef;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		.detail-modal-close {
+			font-size: 1.2rem;
+			cursor: pointer;
+			color: #909399;
+		}
+		.detail-modal-body {
+			padding: 8px 18px 12px;
+		}
+		.detail-row-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 10px 0;
+			border-bottom: 1px solid #f0f0f0;
+		}
+		.detail-row-item.last-detail { border-bottom: none; }
+		.detail-row-double {
+			display: flex;
+			justify-content: space-between;
+			gap: 20px;
+			padding: 10px 0;
+			border-bottom: 1px solid #f0f0f0;
+			position: relative;
+		}
+		.detail-row-double.last-detail { border-bottom: none; }
+		.detail-col {
+			flex: 1;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		.detail-col:first-child::after {
+			content: '';
+			position: absolute;
+			left: 50%;
+			top: 10%;
+			height: 80%;
+			width: 1px;
+			background: #e9ecef;
+		}
+		.detail-footer { 
+			margin-top: 12px; 
+			padding-top: 6px; 
+		}
+		.detail-summary {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px 0 8px;
+			border-top: 2px solid #e9ecef;
+			font-weight: 700;
+		}
+		.detail-summary .detail-label { font-weight: 700; color: #2c3e50; }
+		.detail-summary .detail-amount { font-weight: 700; color: #66b3ff; font-size: 0.9rem; }
+		.detail-label { font-size: 0.8rem; color: #909399; }
+		.detail-amount { font-size: 0.85rem; font-weight: 600; color: #2c3e50; }
+		
+		.drawer-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0); z-index: 1000; display: none; transition: background 0.2s ease; }
+		.drawer-mask.show { background: rgba(0,0,0,0.5); }
+		.bottom-drawer { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; border-radius: 18px 18px 0 0; transform: translateY(100%); transition: transform 0.3s; z-index: 1001; max-height: 80vh; overflow-y: auto; }
+		.bottom-drawer.show { transform: translateY(0); border-top: 1px solid #e0e0e0; }
+		.drawer-header { padding: 14px 18px 6px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; position: sticky; top: 0; background: #fff; z-index: 10; }
+		.drawer-date-title { font-size: 0.9rem; font-weight: 600; color: #1f2d3d; }
+		.close-drawer-btn { background: transparent; border: none; font-size: 1.2rem; cursor: pointer; color: #909399; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 16px; }
+		.close-drawer-btn:active { background: #f0f2f5; }
+		.drawer-delete-red { background: #f56c6c; border: none; border-radius: 10px; padding: 14px 10px; color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer; flex: 1; text-align: center; }
+		.drawer-delete-red:active { background: #e54848; transform: scale(0.96); }
+		.drawer-body { padding: 0 14px 16px; }
+		.form-row { margin-bottom: 12px; }
+		.form-label { font-size: 0.6rem; font-weight: 600; color: #909399; margin-bottom: 4px; }
+		.shift-switch { display: flex; gap: 8px; background: #fff; padding: 4px; border-radius: 10px; border: 1px solid #e4e7ed; margin-top: 3px; }
+		.shift-option { flex: 1; text-align: center; padding: 12px 0; border-radius: 8px; font-size: 0.7rem; cursor: pointer; background: #fff; color: #606266; display: flex; align-items: center; justify-content: center; gap: 6px; }
+		.shift-option.active { background: #66b3ff; color: white; }
+		.shift-option.locked { background: #e8e8e8; color: #999; }
+		.shift-option.locked::after { content: "🔒"; font-size: 0.7rem; margin-left: 4px; }
+		.shift-switch.lock-mode .shift-option:not(.locked) { pointer-events: none; opacity: 0.6; }
+		.shift-switch.edit-mode .shift-option { pointer-events: auto !important; opacity: 1 !important; background: #fff !important; }
+		.shift-switch.edit-mode .shift-option.active { background: #66b3ff !important; color: white !important; }
+		.shift-switch.edit-mode .shift-option.locked::after { content: none; }
+		.overtime-section { margin-top: -8px; }
+		.overtime-card { background: #fff; border-radius: 10px; margin-bottom: 12px; border: 1px solid #e4e7ed; overflow: hidden; }
+		.type-nav { display: flex; gap: 0; background: #fff; padding: 4px; border-bottom: 1px solid #f0f0f0; }
+		.type-nav-item { flex: 1; text-align: center; padding: 10px 0; font-size: 0.7rem; font-weight: 500; color: #606266; cursor: pointer; border-radius: 8px; background: #fff; }
+		.type-nav-item.active { background: #66b3ff; color: white; }
+		.time-control-wrapper { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px 10px; }
+		.time-label { font-size: 0.68rem; color: #606266; }
+		.time-control { display: flex; align-items: center; gap: 8px; }
+		.time-btn-circle { width: 32px; height: 32px; background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 600; color: #66b3ff; cursor: pointer; }
+		.time-btn-circle:active { background: #ecf5ff; }
+		.time-input {
+			width: 65px;
+			text-align: center;
+			font-size: 0.9rem;
+			font-weight: 700;
+			color: #1f2d3d;
+			background: #fff;
+			padding: 6px 4px;
+			border-radius: 8px;
+			border: 1px solid #e4e7ed;
+			outline: none;
+		}
+		.time-input:focus { border-color: #66b3ff; }
+		.amount-input-wrapper { display: flex; align-items: center; gap: 4px; background: #fff; padding: 3px 10px; border-radius: 8px; border: 1px solid #e4e7ed; }
+		.amount-input-wrapper span { font-size: 0.8rem; color: #d4a017; }
+		.amount-input-wrapper input { width: 80px; text-align: center; font-size: 0.9rem; font-weight: 700; color: #1f2d3d; border: none; outline: none; background: transparent; }
+		.scroll-hint-top { text-align: center; font-size: 0.48rem; color: #b0b3b8; margin-top: -8px; margin-bottom: 2px; }
+		.time-options-container { background: #f5f7fa; border-radius: 10px; padding: 10px; margin-top: 2px; max-height: 120px; overflow-y: auto; }
+		.time-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+		.time-option { 
+			aspect-ratio: 1 / 0.9; 
+			background: #fff; 
+			border: 1px solid #e4e7ed; 
+			border-radius: 8px; 
+			display: flex; 
+			align-items: center; 
+			justify-content: center; 
+			font-size: 0.75rem; 
+			font-weight: 600; 
+			color: #2c3e50; 
+			cursor: pointer; 
+		}
+		.time-option:active { background: #ecf5ff; }
+		.time-option.selected { background: #66b3ff; color: white; }
+		.amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+		.amount-option { background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 8px 0; text-align: center; font-size: 0.75rem; font-weight: 600; color: #2c3e50; cursor: pointer; }
+		.amount-option:active { background: #ecf5ff; }
+		.amount-option.selected { background: #66b3ff; color: white; }
+		.remark-wrapper { margin-top: 6px; }
+		.remark-label { font-size: 0.65rem; font-weight: 700; color: #909399; margin-bottom: 6px; }
+		.remark-input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #e4e7ed; font-size: 0.85rem; font-weight: 600; resize: none; background: #fafbfc; }
+		.remark-input:focus { outline: none; border-color: #66b3ff; background: #fff; }
+		.drawer-buttons { display: flex; gap: 10px; margin-top: 8px; }
+		.drawer-buttons button { flex: 1; padding: 14px 10px; border-radius: 10px; border: none; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+		.drawer-buttons button:active { transform: scale(0.96); }
+		.save-drawer { background: #66b3ff; color: white; }
+		
+		/* 备注弹窗样式 */
+		.remark-modal-mask {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0,0,0,0.5);
+			z-index: 2000;
+			display: none;
+			justify-content: center;
+			align-items: center;
+		}
+		.remark-modal-card {
+			width: 80%;
+			max-width: 300px;
+			background: #fff;
+			border-radius: 16px;
+			overflow: hidden;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+		}
+		.remark-modal-header {
+			padding: 16px 18px 10px;
+			font-size: 0.9rem;
+			font-weight: 600;
+			color: #1f2d3d;
+			border-bottom: 1px solid #e9ecef;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		.remark-modal-close {
+			font-size: 1.2rem;
+			cursor: pointer;
+			color: #909399;
+			width: 28px;
+			height: 28px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 14px;
+		}
+		.remark-modal-close:active { background: #f0f2f5; }
+		.remark-modal-body {
+			padding: 16px 18px;
+			font-size: 0.85rem;
+			color: #606266;
+			line-height: 1.5;
+			word-break: break-all;
+			white-space: pre-wrap;
+		}
+		.remark-modal-footer {
+			padding: 12px 16px 16px;
+			display: flex;
+			justify-content: flex-end;
+		}
+		.remark-modal-footer button {
+			background: #66b3ff;
+			color: white;
+			border: none;
+			border-radius: 8px;
+			padding: 8px 16px;
+			font-size: 0.75rem;
+			font-weight: 500;
+			cursor: pointer;
+		}
+		.remark-modal-footer button:active { transform: scale(0.96); }
+		
+		.z_subPage {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			max-width: 500px;
+			right: 0;
+			margin: 0 auto;
+			background: #F7F7F7;
+			z-index: 200;
+			min-height: 100vh;
+			transform: translateX(100%);
+			transition: transform 0.3s ease;
+			overflow-y: auto;
+			padding-bottom: 30px;
+		}
+		.z_subPage.z_show { transform: translateX(0); }
+		.z_subPageHeader {
+			background: #fff;
+			padding: 5px 16px;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			border-bottom: 1px solid #e4e7ed;
+			position: sticky;
+			top: 0;
+			z-index: 10;
+		}
+		.z_backBtn { font-size: 1.2rem; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.1s; }
+		.z_backBtn:active { background: #f0f2f5; transform: scale(0.94); }
+		.z_subPageTitle { flex: 1; font-size: 0.85rem; font-weight: 600; color: #1f2d3d; }
+		.z_subPageBody { padding: 16px; }
+		.z_typeSection { background-color: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+		.z_typeGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+		.z_typeBtn {
+			text-align: center;
+			padding: 10px 0;
+			background: #f5f7fa;
+			border-radius: 10px;
+			font-size: 0.7rem;
+			color: #606266;
+			cursor: pointer;
+			transition: all 0.1s;
+			border: 1px solid #e4e7ed;
+			position: relative;
+		}
+		.z_typeBtn:active { transform: scale(0.96); }
+		.z_typeBtn.z_exists { background: #e6f7ff; color: #0099ff; border-color: #91d5ff; cursor: not-allowed; }
+		.z_typeBtn.z_exists::after { content: " ✅"; font-size: 0.7rem; }
+		.z_typeBtn.z_selected { background: #66b3ff; color: white !important; border-color: #66b3ff; }
+		.z_typeBtn.z_locked_edit { background: #e8e8e8; color: #999; border-color: #d0d0d0; cursor: not-allowed; }
+		.z_typeBtn.z_locked_edit::after { content: " 🔒"; font-size: 0.7rem; }
+		.z_bigCard { background: #fff; border-radius: 10px; margin-top: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+		.z_bigCardItem { padding: 14px 16px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+		.z_bigCardItem:last-child { border-bottom: none; }
+		.z_bigCardLabel { font-size: 0.75rem; color: #606266; min-width: 100px; }
+		.z_inputWrapper { flex: 1; min-width: 100px; max-width: 140px; display: flex; align-items: center; justify-content: flex-end; background: #f5f7fa; border-radius: 8px; padding: 8px 12px; gap: 8px; }
+		.z_inputField { font-size: 0.9rem; color: #1f2d3d; border: none; text-align: left; background: transparent; width: 100%; font-weight: 500; }
+		.z_inputFieldRight { text-align: right; }
+		.z_inputField:focus { outline: none; }
+		.z_inputUnit { font-size: 0.7rem; color: #909399; white-space: nowrap; }
+		.z_calcSwitch { display: flex; gap: 0; background: #f5f7fa; border-radius: 8px; padding: 2px; margin: 12px 12px 0 12px; }
+		.z_calcSwitchBtn { flex: 1; text-align: center; padding: 8px 0; font-size: 0.7rem; color: #909399; cursor: pointer; border-radius: 6px; transition: all 0.1s; }
+		.z_calcSwitchBtn.z_active { background: #66b3ff; color: white; }
+		.z_fullCard { background: #fff; border-radius: 10px; margin-top: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+		.z_hintArea { margin: 16px 0 12px 0; text-align: left; padding-left: 4px; }
+		.z_hintText { font-size: 0.6rem; color: #c0c4cc; line-height: 1.4; }
+		.z_saveBtn {
+			width: 100%;
+			padding: 14px;
+			background: #66b3ff;
+			color: white;
+			border: none;
+			border-radius: 10px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			cursor: pointer;
+			transition: transform 0.1s;
+		}
+		.z_saveBtn:active { transform: scale(0.96); }
+		.z_toggleSwitch { display: flex; align-items: center; }
+		.z_toggleTrack { width: 44px; height: 24px; background-color: #e4e7ed; border-radius: 24px; position: relative; cursor: pointer; transition: background-color 0.2s; }
+		.z_toggleTrack.z_active { background-color: #66b3ff; }
+		.z_toggleThumb { width: 20px; height: 20px; background-color: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+		.z_toggleTrack.z_active .z_toggleThumb { left: 22px; }
+		.z_autoHint { font-size: 0.7rem; color: #66b3ff; background: #EDF3FE; padding: 8px 12px; border-radius: 8px; text-align: left; flex: 1; }
+		.z_rowWithToggle { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+		.z_subCalcSwitch { display: flex; gap: 0; background: #f5f7fa; border-radius: 8px; padding: 2px; margin: 12px 12px 0 12px; }
+		.z_subCalcSwitchBtn { flex: 1; text-align: center; padding: 8px 0; font-size: 0.7rem; color: #909399; cursor: pointer; border-radius: 6px; transition: all 0.1s; }
+		.z_subCalcSwitchBtn.z_active { background: #66b3ff; color: white; }
+		.z_percentRow { padding: 12px 16px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; }
+		.z_percentLeft { flex: 1; }
+		.z_percentMain { font-size: 0.75rem; color: #606266; margin-bottom: 1px; }
+		.z_percentSub { font-size: 0.6rem; color: #c0c4cc; line-height: 1.2; }
+		.z_percentRight { margin-left: 16px; }
+		.z_percentRight .z_inputWrapper { max-width: 120px; margin: 0; }
+		.z_payModal { width: 90%; max-width: 320px; background: #fff; border-radius: 12px; overflow: hidden; }
+		.z_paramRow { margin-bottom: 8px; }
+		.z_paramRow label { font-size: 0.65rem; color: #909399; display: block; margin-bottom: 6px; }
+		.z_paramRow input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e4e7ed; font-size: 0.75rem; }
+		
+		.reuse-month-btn {
+			background: #66b3ff;
+			color: white;
+			border: none;
+			border-radius: 12px;
+			padding: 14px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			cursor: pointer;
+			width: calc(100% - 32px);
+			margin: 20px 16px 38px 16px;
+			display: block;
+			text-align: center;
+		}
+		.reuse-month-btn:active { transform: scale(0.97); background: #3388ee; }
+		
+		.salary-method-card {
+			background: #fff;
+			border-radius: 12px;
+			margin-bottom: 12px;
+			padding: 16px;
+			border: 1px solid #e4e7ed;
+			cursor: pointer;
+			transition: all 0.1s;
+			position: relative;
+		}
+		.salary-method-card:active { transform: scale(0.98); background: #f5f7fa; }
+		.salary-method-card.selected {
+			border-color: #66b3ff;
+			background: #ecf5ff;
+		}
+		.salary-method-title {
+			font-size: 0.9rem;
+			font-weight: 600;
+			color: #1f2d3d;
+			margin-bottom: 6px;
+		}
+		.salary-method-desc {
+			font-size: 0.65rem;
+			color: #909399;
+			line-height: 1.4;
+			margin-bottom: 8px;
+		}
+		.salary-method-example {
+			font-size: 0.6rem;
+			color: #66b3ff;
+			padding: 4px 0;
+			margin-top: 6px;
+			text-align: left;
+			line-height: 1.4;
+		}
+		.method-radio {
+			position: absolute;
+			right: 16px;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			border: 2px solid #c0c4cc;
+			background: #fff;
+		}
+		.salary-method-card.selected .method-radio {
+			border-color: #66b3ff;
+			background: #66b3ff;
+		}
+		.salary-method-card.selected .method-radio::after {
+			content: '✓';
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			color: white;
+			font-size: 12px;
+		}
+		.next-step-btn {
+			width: calc(100% - 32px);
+			margin: 20px 16px;
+			padding: 14px;
+			background: #66b3ff;
+			color: white;
+			border: none;
+			border-radius: 10px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.next-step-btn:active { transform: scale(0.96); background: #3388ee; }
+		.next-step-btn.disabled {
+			background: #c0c4cc;
+			pointer-events: none;
+		}
+		
+		.edit-form-field {
+			padding: 14px 16px;
+			border-bottom: 1px solid #f0f2f5;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 8px;
+			background: #fff;
+		}
+		.edit-form-field:last-child { border-bottom: none; }
+		.edit-form-label {
+			font-size: 0.75rem;
+			color: #606266;
+			min-width: 100px;
+		}
+		.edit-form-input-wrapper {
+			flex: 1;
+			min-width: 100px;
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			background: #f5f7fa;
+			border-radius: 8px;
+			padding: 8px 12px;
+			gap: 8px;
+		}
+		.edit-form-input {
+			font-size: 0.9rem;
+			color: #1f2d3d;
+			border: none;
+			text-align: right;
+			background: transparent;
+			width: 100%;
+			font-weight: 500;
+		}
+		.edit-form-input:focus { outline: none; }
+		.edit-form-unit {
+			font-size: 0.7rem;
+			color: #909399;
+			white-space: nowrap;
+		}
+		
+		.edit-form-hint {
+			font-size: 0.6rem;
+			color: #66b3ff;
+			background: #ecf5ff;
+			padding: 10px 16px;
+			margin-top: 0;
+			margin-bottom: 0;
+			text-align: left;
+			line-height: 1.5;
+		}
+		
+		.salary-edit-save-btn {
+			width: calc(100% - 32px);
+			margin: 20px 16px;
+			padding: 14px;
+			background: #66b3ff;
+			color: white;
+			border: none;
+			border-radius: 10px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.salary-edit-save-btn:active { transform: scale(0.96); background: #3388ee; }
+		
+		.salary-drawer-mask {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			max-width: 500px;
+			right: 0;
+			margin: 0 auto;
+			height: 100%;
+			background: rgba(0,0,0,0);
+			z-index: 1000;
+			display: none;
+			transition: background 0.2s ease;
+		}
+		.salary-drawer-mask.show {
+			background: rgba(0,0,0,0.5);
+		}
+		.salary-drawer-container {
+			position: fixed;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			max-width: 500px;
+			margin: 0 auto;
+			background: #F7F7F7;
+			border-radius: 18px 18px 0 0;
+			transform: translateY(100%);
+			transition: transform 0.3s ease;
+			z-index: 1001;
+			display: flex;
+			flex-direction: column;
+			overflow: hidden;
+		}
+		.salary-drawer-container.show {
+			transform: translateY(0);
+		}
+		.salary-drawer-header {
+			background: #fff;
+			padding: 14px 16px;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			border-bottom: 1px solid #e4e7ed;
+			flex-shrink: 0;
+		}
+		.salary-drawer-back {
+			font-size: 1.2rem;
+			cursor: pointer;
+			width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 50%;
+		}
+		.salary-drawer-back:active {
+			background: #f0f2f5;
+			transform: scale(0.94);
+		}
+		.salary-drawer-title {
+			flex: 1;
+			font-size: 0.9rem;
+			font-weight: 600;
+			color: #1f2d3d;
+		}
+		.salary-pages-wrapper {
+			flex: 1;
+			overflow: hidden;
+			position: relative;
+		}
+		.salary-pages-slider {
+			display: flex;
+			width: 200%;
+			height: 100%;
+			transition: transform 0.3s ease;
+			transform: translateX(0%);
+		}
+		.salary-page {
+			width: 50%;
+			height: 100%;
+			overflow-y: auto;
+			padding: 16px;
+			background: #F7F7F7;
+		}
+		
+		.help-subpage {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			max-width: 500px;
+			right: 0;
+			margin: 0 auto;
+			background: #F7F7F7;
+			z-index: 200;
+			height: 100vh;
+			transform: translateX(100%);
+			transition: transform 0.3s ease;
+			overflow-y: auto;
+			padding-bottom: 40px;
+		}
+		.help-subpage.z_show {
+			transform: translateX(0);
+		}
+		.help-subpage .help-header {
+			background: #fff;
+			padding: 5px 16px;
+			display: flex;
+			align-items: center;
+			gap: 16px;
+			border-bottom: 1px solid #e4e7ed;
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			background: #fff;
+		}
+		.help-subpage .help-back {
+			font-size: 1.2rem;
+			cursor: pointer;
+			width: 32px;
+			height: 32px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 50%;
+		}
+		.help-subpage .help-back:active {
+			background: #f0f2f5;
+			transform: scale(0.94);
+		}
+		.help-subpage .help-title {
+			flex: 1;
+			font-size: 0.9rem;
+			font-weight: 600;
+			color: #1f2d3d;
+		}
+		.help-subpage .help-body {
+			padding: 16px;
+			padding-bottom: 40px;
+		}
+		.help-subpage .help-section {
+			background: #fff;
+			border-radius: 12px;
+			margin-bottom: 16px;
+			overflow: hidden;
+			box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+		}
+		.help-subpage .help-section-title {
+			padding: 14px 16px 8px;
+			font-size: 0.75rem;
+			font-weight: 700;
+			color: #66b3ff;
+			background: #fafbfc;
+			border-bottom: 1px solid #eef2f6;
+		}
+		.help-subpage .help-content {
+			padding: 12px 16px;
+			font-size: 0.7rem;
+			color: #606266;
+			line-height: 1.6;
+		}
+		.help-subpage .help-content p {
+			margin-bottom: 8px;
+		}
+		.help-subpage .help-content .highlight {
+			color: #66b3ff;
+			font-weight: 600;
+		}
+		.help-subpage .help-content .warning {
+			color: #f56c6c;
+		}
+		
+		.mirror {
+			display: inline-block;
+			transform: scaleX(-1);
+		}
+		
+		.unified-modal {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0,0,0,0.5);
+			z-index: 2000;
+			display: none;
+			justify-content: center;
+			align-items: center;
+		}
+		.unified-card {
+			width: 75%;
+			max-width: 270px;
+			background: #fff;
+			border-radius: 14px;
+			overflow: hidden;
+			box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+		}
+		.unified-header {
+			padding: 14px 16px 10px;
+			font-size: 0.85rem;
+			font-weight: 600;
+			color: #1f2d3d;
+			text-align: center;
+			border-bottom: 1px solid #e9ecef;
+		}
+		.unified-body {
+			padding: 16px;
+			text-align: center;
+			font-size: 0.75rem;
+			color: #606266;
+			line-height: 1.4;
+		}
+		.unified-buttons {
+			display: flex;
+			gap: 10px;
+			padding: 0 16px 16px;
+		}
+		.unified-buttons button {
+			flex: 1;
+			padding: 9px;
+			border-radius: 8px;
+			border: none;
+			font-weight: 600;
+			font-size: 0.75rem;
+			cursor: pointer;
+		}
+		.unified-confirm { background: #66b3ff; color: white; }
+		.unified-cancel { background: #f5f7fa; color: #909399; }
+		
+		.time-set-modal .unified-body {
+			text-align: left;
+			padding: 14px 16px 10px 16px;
+		}
+		.time-set-item {
+			margin-bottom: 12px;
+		}
+		.time-set-item .label {
+			font-size: 0.65rem;
+			color: #909399;
+			margin-bottom: 3px;
+		}
+		.time-set-item .date {
+			font-size: 0.75rem;
+			font-weight: 600;
+			color: #66b3ff;
+			margin-bottom: 6px;
+		}
+		.time-control-group {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			gap: 10px;
+			background: #f5f7fa;
+			border-radius: 8px;
+			padding: 6px;
+		}
+		.time-control-group .btn {
+			width: 28px;
+			height: 28px;
+			background: #fff;
+			border: 1px solid #e4e7ed;
+			border-radius: 6px;
+			font-size: 0.9rem;
+			font-weight: 600;
+			color: #66b3ff;
+			cursor: pointer;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.time-control-group .btn:active { background: #ecf5ff; transform: scale(0.96); }
+		.time-value-input {
+			width: 56px;
+			text-align: center;
+			font-size: 0.85rem;
+			font-weight: 700;
+			color: #1f2d3d;
+			background: #fff;
+			padding: 5px 4px;
+			border-radius: 6px;
+			border: 1px solid #e4e7ed;
+			outline: none;
+		}
+		.time-value-input:focus { border-color: #66b3ff; }
+		.time-set-hint {
+			font-size: 0.55rem;
+			color: #c0c4cc;
+			text-align: center;
+			margin-top: 5px;
+		}
+		.time-set-modal .unified-buttons {
+			padding: 0 16px 14px 16px;
+		}
+		
+		.calendar-placeholder {
+			text-align: center;
+			padding: 40px;
+			color: #909399;
+			font-size: 0.9rem;
+			font-weight: 500;
+			white-space: nowrap;
+		}
+		
+		.edit-form-container {
+			background: #fff;
+			border-radius: 16px;
+			overflow: hidden;
+			margin-bottom: 20px;
+		}
+		
+		.settings-item.clear-data {
+			color: #f56c6c;
+		}
+		.settings-item.clear-data .settings-label {
+			color: #f56c6c;
+		}
+	</style>
+	<script src="./lunar.js"></script>
+</head>
+<body>
+<div class="container">
+	<div id="calendarPage" class="page active-page">
+		<div id="statsBarContainer" class="stats-bar" style="display: flex;">
+			<div class="stat-item" id="statOvertimeCard"><div class="stat-value"><strong id="totalOvertime">0</strong><span class="stat-unit">小时</span></div><div class="stat-label">加班时长</div></div>
+			<div class="stat-item" id="statIncomeCard" style="position:relative;"><div class="stat-value"><strong id="monthIncome">0</strong><span class="stat-unit">元</span></div><div class="stat-label" id="monthLabel">6月工资</div><div class="mode-badge" id="modeBadge">按出勤算</div></div>
+			<div class="stat-item" id="statAttendanceCard"><div class="stat-value"><strong id="attendanceDays">0</strong><span class="stat-unit">天</span></div><div class="stat-label">出勤天数</div></div>
+		</div>
+		<div class="calendar-card">
+			<div class="title-bar"><div class="mini-title">📅 记加班<span class="small-text"> · 不错过每一份努力</span></div><div class="month-nav"><button class="month-nav-btn" id="prevMonth">‹</button><span class="current-month" id="currentMonthLabel">2026年6月</span><button class="month-nav-btn" id="nextMonth">›</button></div></div>
+			<div class="week-row"><div class="weekday">一</div><div class="weekday">二</div><div class="weekday">三</div><div class="weekday">四</div><div class="weekday">五</div><div class="weekday">六</div><div class="weekday">日</div></div>
+			<div class="cal-grid" id="calendarGrid"></div>
+			<div class="bottom-detail" id="bottomDetail"></div>
+		</div>
+		<div class="footer-section" id="footerSection"><div class="footer-title" id="footerTitle"><h1>🗓记加班</h1><div class="footer-sub">早来晚走多干活，不记工时白忙活</div></div></div>
+	</div>
+
+	<div id="settingsPage" class="page">
+		<div class="settings-container">
+			<div class="income-display-card" id="incomeCard">
+				<div class="income-display-label" id="incomeCardLabel">本月预估收入</div>
+				<div class="income-display-amount" id="settingsMonthIncome">0</div>
+				<div class="income-display-details" id="incomeCardDetails">
+					<span>底薪: <strong id="settingsBaseSalary">0</strong></span>
+					<span>加班: <strong id="settingsOvertime">0</strong></span>
+					<span>补贴: <strong id="settingsAllowances">0</strong></span>
+					<span>扣款: <strong id="settingsDeductions">0</strong></span>
+				</div>
+				<div id="yearStatsContainer" style="display: none;"></div>
+			</div>
+
+			<div class="subded-card">
+				<div class="subded-header"><h3>🎁 补贴项目</h3><span class="subded-header-total positive" id="settingsSubTotal">+¥0</span></div>
+				<div id="settingsSubsidyList"></div>
+				<button class="add-link-btn" id="settingsAddSubsidyBtn">+ 添加补贴</button>
+			</div>
+
+			<div class="subded-card">
+				<div class="subded-header"><h3>📉 扣款项目</h3><span class="subded-header-total negative" id="settingsDedTotal">-¥0</span></div>
+				<div id="settingsDeductionList"></div>
+				<button class="add-link-btn" id="settingsAddDeductionBtn">+ 添加扣款</button>
+			</div>
+
+			<div class="settings-header">📊 数据管理</div>
+			<div class="settings-card">
+				<div class="settings-item" id="setSalaryMethodBtn">
+					<span class="settings-label">💰 计薪方式</span>
+					<span class="settings-value" id="salaryMethodDisplay">暂未设置计薪方式</span>
+					<span class="settings-arrow">›</span>
+				</div>
+				<div class="settings-item" id="importDataBtn">
+					<span class="settings-label">📥 导入数据</span>
+					<span class="settings-arrow">›</span>
+				</div>
+				<div class="settings-item" id="exportDataBtn">
+					<span class="settings-label">📤 导出数据</span>
+					<span class="settings-arrow">›</span>
+				</div>
+				<div class="settings-item clear-data" id="clearDataBtn">
+					<span class="settings-label">🗑️ 清除所有数据</span>
+					<span class="settings-arrow">›</span>
+				</div>
+			</div>
+
+			<div class="settings-card">
+				<div class="settings-item" id="helpBtn">
+					<span class="settings-label">❓ 使用说明</span>
+					<span class="settings-arrow">›</span>
+				</div>
+			</div>
+
+			<button class="reuse-month-btn" id="reuseLastMonthBtn">复用上月数据</button>
+		</div>
+	</div>
+
+	<div class="bottom-nav">
+		<div class="nav-item active" data-page="calendar"><span class="nav-icon">📝</span><span>记加班</span></div>
+		<div class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span><span>设置</span></div>
+	</div>
+</div>
+
+<button class="today-fab" id="todayFab">今</button>
+
+<!-- 备注弹窗 -->
+<div id="remarkModal" class="remark-modal-mask">
+	<div class="remark-modal-card">
+		<div class="remark-modal-header">
+			<span>📝 备注详情</span>
+			<div class="remark-modal-close" id="closeRemarkModal">✕</div>
+		</div>
+		<div class="remark-modal-body" id="remarkModalBody">暂无备注</div>
+		<div class="remark-modal-footer">
+			<button id="remarkModalConfirm">知道了</button>
+		</div>
+	</div>
+</div>
+
+<div id="helpSubPage" class="help-subpage">
+	<div class="help-header">
+		<div class="help-back" id="helpBackBtn">←</div>
+		<div class="help-title">📖 使用说明</div>
+	</div>
+	<div class="help-body">
+		<div class="help-section">
+			<div class="help-section-title">📅 记加班页面</div>
+			<div class="help-content">
+				<p>• <span class="highlight">点击日期</span>：查看/编辑该日期的加班记录</p>
+				<p>• <span class="highlight">长按日期</span>：进入多选模式，可批量选择多个日期</p>
+				<p>• <span class="highlight">多选模式</span>：选择2个日期（1个工作日+1个周末）可调班</p>
+				<p>• <span class="highlight">点击顶部横条</span>：查看工时/薪资/考勤详情</p>
+				<p>• <span class="highlight">顶部导航</span>：左右滑动或点击月份切换月份</p>
+				<p>• <span class="highlight">点击底部「今」按钮</span>：快速回到今天</p>
+				<p>• <span class="highlight">长按工资区域</span>：切换「按出勤算」/「按月发薪」模式</p>
+				<p>• <span class="highlight">双击有绿色圆点的日期</span>：查看备注内容</p>
+			</div>
+		</div>
+		<div class="help-section">
+			<div class="help-section-title">⚙️ 设置页面</div>
+			<div class="help-content">
+				<p>• <span class="highlight">长按收入卡片</span>：切换本月收入/年度汇总</p>
+				<p>• <span class="highlight">左右滑动收入卡片</span>：查看其他月份收入</p>
+				<p>• <span class="highlight">补贴/扣款</span>：点击添加，<span class="warning">长按项目可删除</span></p>
+				<p>• <span class="highlight">计薪方式</span>：设置正式工/小时工/综合工时</p>
+				<p>• <span class="highlight">导入/导出</span>：备份或恢复数据到本地文件</p>
+				<p>• <span class="highlight">清除所有数据</span>：删除全部记录和设置（不可恢复）</p>
+				<p>• <span class="highlight">复用上月数据</span>：一键复制上月的补贴扣款设置</p>
+			</div>
+		</div>
+		<div class="help-section">
+			<div class="help-section-title">✏️ 记录加班</div>
+			<div class="help-content">
+				<p>• <span class="highlight">班次</span>：白班/晚班/休息（<span class="warning">双击班次可锁定/解锁</span>）</p>
+				<p>• <span class="highlight">加班类型</span>：正常班/周末/节假日/日结</p>
+				<p>• <span class="highlight">时长/金额</span>：点击数字可直接输入，支持加减按钮和快捷选项</p>
+				<p>• <span class="highlight">备注</span>：可添加文字备注，有备注的日期右上角会显示绿色圆点</p>
+			</div>
+		</div>
+		<div class="help-section">
+			<div class="help-section-title">🔄 调班功能</div>
+			<div class="help-content">
+				<p>• <span class="highlight">操作</span>：多选模式下选择1个工作日+1个周末日期</p>
+				<p>• 自动弹出确认框，点击确认后进入调班设置</p>
+				<p>• 分别设置两个日期调班后的时长</p>
+				<p>• 调班后右上角显示红色<span class="warning">“调”</span>字标识</p>
+			</div>
+		</div>
+		<div class="help-section">
+			<div class="help-section-title">💰 补贴/扣款说明</div>
+			<div class="help-content">
+				<p>• 补贴支持<span class="highlight">按月计算</span>或<span class="highlight">按天计算</span></p>
+				<p>• 夜班补贴可自动获取夜班天数</p>
+				<p>• 全勤奖会自动计算，请假后归零</p>
+				<p>• 社保等扣款支持<span class="highlight">固定金额</span>或<span class="highlight">按百分比</span></p>
+				<p>• 事假/病假扣款支持<span class="highlight">自动获取请假时长</span>，按小时扣款</p>
+			</div>
+		</div>
+		<div class="help-section">
+			<div class="help-section-title">📊 年度汇总说明</div>
+			<div class="help-content">
+				<p>• 在设置页面<span class="highlight">长按收入卡片</span>可切换到年度汇总</p>
+				<p>• 年度汇总会<span class="highlight">实时计算</span>全年总收入、加班时长、出勤天数等</p>
+				<p>• 补贴和扣款会<span class="highlight">自动累加</span>到年度总收入中</p>
+				<p>• 修改任何月份的补贴/扣款后，年度汇总<span class="highlight">立即更新</span></p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="detailModal" class="detail-modal-mask">
+	<div class="detail-modal">
+		<div class="detail-modal-header"><span id="detailModalTitle">工时详情</span><span class="detail-modal-close" id="closeDetailModal">✕</span></div>
+		<div class="detail-modal-body" id="detailModalBody"></div>
+	</div>
+</div>
+
+<div id="yearMonthModal" class="modal-mask"><div class="date-picker-modal"><div class="modal-header"><span>跳转到年月</span><span style="cursor:pointer" id="closeYearMonthBtn">✕</span></div><div class="modal-body"><div class="year-month-input"><input type="number" id="yearInput" placeholder="年份" value="2026"><input type="number" id="monthInput" placeholder="月份" min="1" max="12" value="6"></div><div class="modal-buttons"><button class="cancel-modal" id="cancelYearMonthBtn">取消</button><button class="save-modal" id="confirmYearMonthBtn">跳转</button></div></div></div></div>
+
+<div id="payModal" class="modal-mask"><div class="pay-modal"><div class="modal-header">设置底薪</div><div class="pay-params"><div class="param-row"><label>底薪 (元/月)</label><input type="number" id="baseSalaryInput" value="3000"></div></div><div class="pay-modal-buttons"><button class="pay-cancel" id="closePayBtn">取消</button><button class="pay-save" id="savePayBtn">保存</button></div></div></div>
+
+<div id="drawerMask" class="drawer-mask"></div>
+<div id="bottomDrawer" class="bottom-drawer">
+	<div class="drawer-header"><span class="drawer-date-title" id="drawerDateTitle">2026年5月30日</span><button class="close-drawer-btn" id="closeDrawerBtn">✕</button></div>
+	<div class="drawer-body">
+		<div class="form-row"><div class="form-label">班次</div><div class="shift-switch" id="shiftSwitch"><div class="shift-option" data-shift="白班">☀️ 白班</div><div class="shift-option" data-shift="晚班">🌙 晚班</div><div class="shift-option" data-shift="休息">😴 休息</div></div></div>
+		<div class="overtime-section"><div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div><div class="overtime-card"><div class="type-nav" id="typeNav"><div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div></div><div class="time-control-wrapper" id="timeControlWrapper"><span class="time-label" id="timeLabel">加班时长</span><div class="time-control" id="timeControl"><div class="time-btn-circle" id="timeMinusBtn">−</div><input type="text" id="timeInput" class="time-input" value="0.0" inputmode="decimal" pattern="[0-9]*\.?[0-9]*"><div class="time-btn-circle" id="timePlusBtn">+</div><div class="amount-input-wrapper" id="amountInputWrapper" style="display: none;"><span>¥</span><input type="text" id="amountInput" placeholder="金额" value=""></div></div></div></div></div></div>
+		<div class="scroll-hint-top" id="scrollHint">↓ 下滑查看更多时间选项 ↓</div>
+		<div class="time-options-container" id="timeOptionsContainer"><div class="time-grid" id="timeGrid"></div><div class="amount-grid" id="amountGrid" style="display: none;"></div></div>
+		<div class="remark-wrapper"><div class="remark-label">📝 写点什么</div><textarea id="remarkInput" class="remark-input" rows="2" placeholder="今天记点什么好呢？"></textarea></div>
+		<div class="drawer-buttons" id="drawerButtons">
+			<button class="drawer-delete-red" id="deleteRecordBtn">删除</button>
+			<button class="save-drawer" id="saveDrawerBtn">保存记录</button>
+		</div>
+	</div>
+</div>
+
+<div id="z_subPage" class="z_subPage">
+	<div class="z_subPageHeader"><div class="z_backBtn" id="z_closeSub">←</div><div class="z_subPageTitle" id="z_subTitle">新增补贴</div></div>
+	<div class="z_subPageBody">
+		<div class="z_typeSection"><div class="z_typeGrid" id="z_subGrid"></div></div>
+		<div class="z_bigCard" id="z_normalCard">
+			<div class="z_bigCardItem" id="z_customNameItem" style="display: none;">
+				<span class="z_bigCardLabel">项目名称</span>
+				<div class="z_inputWrapper"><input type="text" id="z_subName" class="z_inputField" placeholder="请输入名称"></div>
+			</div>
+			<div class="z_calcSwitch" id="z_calcSwitch">
+				<div class="z_calcSwitchBtn z_active" data-type="month">按月计算</div>
+				<div class="z_calcSwitchBtn" data-type="day">按天计算</div>
+			</div>
+			<div id="z_monthArea">
+				<div class="z_bigCardItem"><span class="z_bigCardLabel" id="z_monthLabel">补贴金额</span><div class="z_inputWrapper"><input type="number" id="z_subMonth" class="z_inputField z_inputFieldRight" placeholder="0" step="0.01" value=""><span class="z_inputUnit">元/月</span></div></div>
+			</div>
+			<div id="z_dayArea" style="display: none;">
+				<div class="z_bigCardItem"><span class="z_bigCardLabel" id="z_dayPriceLabel">补贴金额</span><div class="z_inputWrapper"><input type="number" id="z_subDayPrice" class="z_inputField z_inputFieldRight" placeholder="0" step="0.01" value=""><span class="z_inputUnit">元/天</span></div></div>
+				<div class="z_bigCardItem"><div class="z_rowWithToggle"><span class="z_bigCardLabel" id="z_dayCountLabel">自动获取夜班天数</span><div class="z_toggleSwitch"><div class="z_toggleTrack z_active" id="z_dayToggle"><div class="z_toggleThumb"></div></div></div></div></div>
+				<div class="z_bigCardItem" id="z_autoModeArea"><div class="z_autoHint" id="z_autoDaysHint">从记加班自动获取夜班天数（0天）</div></div>
+				<div class="z_bigCardItem" id="z_manualModeArea" style="display: none;"><span class="z_bigCardLabel" id="z_manualDayLabel">本月实际夜班天数</span><div class="z_inputWrapper"><input type="number" id="z_subDayCount" class="z_inputField z_inputFieldRight" placeholder="0" step="1" value=""><span class="z_inputUnit">天</span></div></div>
+			</div>
+		</div>
+		<div class="z_fullCard" id="z_fullCard" style="display: none;">
+			<div class="z_bigCardItem"><span class="z_bigCardLabel">全勤奖金</span><div class="z_inputWrapper"><input type="number" id="z_subFull" class="z_inputField z_inputFieldRight" placeholder="0" step="0.01" value=""><span class="z_inputUnit">元/月</span></div></div>
+		</div>
+		<div class="z_hintArea"><div class="z_hintText" id="z_hintText">按月计算：每月固定金额</div></div>
+		<button class="z_saveBtn" id="z_saveSub">保存</button>
+	</div>
+</div>
+
+<div id="z_dedPage" class="z_subPage">
+	<div class="z_subPageHeader"><div class="z_backBtn" id="z_closeDed">←</div><div class="z_subPageTitle" id="z_dedTitle">新增扣款</div></div>
+	<div class="z_subPageBody">
+		<div class="z_typeSection"><div class="z_typeGrid" id="z_dedGrid"></div></div>
+		<div class="z_bigCard">
+			<div class="z_bigCardItem" id="z_dedCustomItem" style="display: none;">
+				<span class="z_bigCardLabel">项目名称</span>
+				<div class="z_inputWrapper"><input type="text" id="z_dedName" class="z_inputField" placeholder="请输入名称"></div>
+			</div>
+			<div class="z_subCalcSwitch" id="z_dedSubSwitch" style="display: none;">
+				<div class="z_subCalcSwitchBtn z_active" data-subtype="fixed">按月固定</div>
+				<div class="z_subCalcSwitchBtn" data-subtype="percent">按百分比</div>
+			</div>
+			<div class="z_subCalcSwitch" id="z_leaveSubSwitch" style="display: none;">
+				<div class="z_subCalcSwitchBtn z_active" data-subtype="fixed">按金额</div>
+				<div class="z_subCalcSwitchBtn" data-subtype="percent">按百分比</div>
+			</div>
+			<div id="z_dedFixedArea">
+				<div class="z_bigCardItem"><span class="z_bigCardLabel" id="z_dedLabel">扣款金额</span><div class="z_inputWrapper"><input type="number" id="z_dedAmount" class="z_inputField z_inputFieldRight" placeholder="0" step="0.01" value=""><span class="z_inputUnit" id="z_dedUnit">元/月</span></div></div>
+			</div>
+			<div id="z_dedPercentArea" style="display: none;">
+				<div class="z_percentRow"><div class="z_percentLeft"><div class="z_percentMain" id="z_percentLabel">扣款比例（从底薪计算）</div><div class="z_percentSub" id="z_percentText">底薪 3000元 × 0% = 0.00元</div></div><div class="z_percentRight"><div class="z_inputWrapper"><input type="number" id="z_dedPercent" class="z_inputField z_inputFieldRight" placeholder="0" step="0.1" value=""><span class="z_inputUnit">%</span></div></div></div>
+			</div>
+			<div id="z_leaveHourArea" style="display: none;">
+				<div class="z_bigCardItem"><div class="z_rowWithToggle"><span class="z_bigCardLabel" id="z_autoHourLabel">自动获取事假时长</span><div class="z_toggleSwitch"><div class="z_toggleTrack z_active" id="z_hourToggle"><div class="z_toggleThumb"></div></div></div></div></div>
+				<div class="z_bigCardItem" id="z_autoHourModeArea"><div class="z_autoHint" id="z_autoHourHint">从记加班自动获取时长（0小时）</div></div>
+				<div class="z_bigCardItem" id="z_manualHourModeArea" style="display: none;"><span class="z_bigCardLabel" id="z_manualHourLabel">本月事假时长</span><div class="z_inputWrapper"><input type="number" id="z_dedHours" class="z_inputField z_inputFieldRight" placeholder="0" step="0.5" value=""><span class="z_inputUnit">小时</span></div></div>
+			</div>
+		</div>
+		<div class="z_hintArea"><div class="z_hintText" id="z_dedHint">按月固定扣款金额</div></div>
+		<button class="z_saveBtn" id="z_saveDed">保存</button>
+	</div>
+</div>
+
+<div id="z_delModal" class="modal-mask"><div class="pay-modal" style="width:80%;max-width:280px;"><div class="modal-header"><span>确认删除</span><span style="cursor:pointer" id="z_closeDelModal">✕</span></div><div class="modal-body" style="text-align:center;"><span id="z_delMsg">确定要删除该项目吗？</span></div><div class="pay-modal-buttons"><button class="pay-cancel" id="z_cancelDel">取消</button><button class="pay-save" id="z_confirmDel">删除</button></div></div></div>
+
+<div id="salaryDrawerMask" class="salary-drawer-mask">
+	<div id="salaryDrawerContainer" class="salary-drawer-container">
+		<div class="salary-drawer-header">
+			<div class="salary-drawer-back" id="salaryDrawerBack">←</div>
+			<div class="salary-drawer-title" id="salaryDrawerTitle">切换工时制度</div>
+		</div>
+		<div class="salary-pages-wrapper">
+			<div class="salary-pages-slider" id="salaryPagesSlider">
+				<div class="salary-page" id="salarySelectPageInner">
+					<div id="methodListInner">
+						<div class="salary-method-card" data-method="formal">
+							<div class="salary-method-title">正式工/合同工</div>
+							<div class="salary-method-desc">有底薪，只记录加班时长。工资=底薪+小时工资×加班时长。</div>
+							<div class="salary-method-example">例如：底薪5000元，平时加班20元/小时，共加班50小时。本月工资：5000+20×50=6000元</div>
+							<div class="method-radio"></div>
+						</div>
+						<div class="salary-method-card" data-method="hourly">
+							<div class="salary-method-title">小时工/临时工</div>
+							<div class="salary-method-desc">无底薪，加班即全部工作时长。工资=小时工资×加班时长。</div>
+							<div class="salary-method-example">例如：时薪20元/小时，一共工作400小时。本月工资：20×400=8000元</div>
+							<div class="method-radio"></div>
+						</div>
+						<div class="salary-method-card" data-method="comprehensive">
+							<div class="salary-method-title">综合工时</div>
+							<div class="salary-method-desc">实际时长超过月标准时长后才算加班。工资=底薪+加班时薪×加班时长。</div>
+							<div class="salary-method-example">例如：底薪5000元，月标准168小时，实际工作200小时，加班时薪30元。工资：5000+30×32=5960元</div>
+							<div class="method-radio"></div>
+						</div>
+					</div>
+					<button class="next-step-btn disabled" id="nextStepBtnInner">下一步</button>
+				</div>
+				<div class="salary-page" id="salaryEditPageInner">
+					<div id="editFormContainerInner" class="edit-form-container"></div>
+					<button class="salary-edit-save-btn" id="saveSalaryEditBtnInner">保存</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="swapTimeModal" class="unified-modal"></div>
+
+<div id="toastMsg" class="toast"></div>
+
+<script>
+	// ==================== 完整 JavaScript 代码 ====================
+	let records = [], payType = "formal", currentYear = 2026, currentMonth = 5, selectedDate = null;
+	let cellRotateTimers = new Map(), cellRotateIndex = new Map();
+	let lockedShift = localStorage.getItem("lockedShift") || null;
+	let currentPage = "calendar";
+	
+	let monthlyAllowances = {};
+	let monthlyDeductions = {};
+	let monthlyBaseSalary = {};
+	let monthlySalaryMethodName = {};
+	let globalSalaryConfigured = false;
+	
+	let settingsAllowances = [];
+	let settingsDeductions = [];
+	let baseSalary = 0;
+	let currentSalaryMethodName = "暂未设置计薪方式";
+	
+	let isMultiSelectMode = false;
+	let selectedDatesSet = new Set();
+	let longPressTimer = null;
+	
+	let showYearStats = false;
+	
+	let swapDates = [];
+	let swapHours = [0, 0];
+	
+	// 工资显示模式: 'prorated' 按出勤算, 'full' 按月发薪
+	let salaryDisplayMode = 'prorated';
+	
+	// 设置页滑动查看月份相关变量
+	let settingsViewYear = null;
+	let settingsViewMonth = null;
+	let settingsTouchStartX = 0;
+	let settingsTouchEndX = 0;
+	
+	// ========== 辅助函数 ==========
+	function getCurrentMonthKey() { return `${currentYear}-${currentMonth + 1}`; }
+	
+	function getBaseSalaryForMonth(year, month) {
+		let key = `${year}-${month + 1}`;
+		if (monthlyBaseSalary[key] !== undefined) return monthlyBaseSalary[key];
+		if (globalSalaryConfigured) {
+			let tempYear = year, tempMonth = month;
+			while (tempMonth >= 0) {
+				let tempKey = `${tempYear}-${tempMonth + 1}`;
+				if (monthlyBaseSalary[tempKey] !== undefined) return monthlyBaseSalary[tempKey];
+				tempMonth--;
+				if (tempMonth < 0) { tempMonth = 11; tempYear--; }
+				if (tempYear < 2000) break;
+			}
+		}
+		return 0;
+	}
+	
+	function setBaseSalaryForMonth(year, month, value) {
+		let key = `${year}-${month + 1}`;
+		monthlyBaseSalary[key] = Math.round(value);
+		globalSalaryConfigured = true;
+		saveAllMonthlyData();
+	}
+	
+	function loadDataForCurrentMonth() {
+		let monthKey = getCurrentMonthKey();
+		if (monthlyAllowances[monthKey]) settingsAllowances = JSON.parse(JSON.stringify(monthlyAllowances[monthKey]));
+		else settingsAllowances = [];
+		if (monthlyDeductions[monthKey]) settingsDeductions = JSON.parse(JSON.stringify(monthlyDeductions[monthKey]));
+		else settingsDeductions = [];
+		baseSalary = getBaseSalaryForMonth(currentYear, currentMonth);
+		if (monthlySalaryMethodName[monthKey]) currentSalaryMethodName = monthlySalaryMethodName[monthKey];
+		else if (globalSalaryConfigured) {
+			let tempYear = currentYear, tempMonth = currentMonth;
+			while (tempMonth >= 0) {
+				let tempKey = `${tempYear}-${tempMonth + 1}`;
+				if (monthlySalaryMethodName[tempKey]) { currentSalaryMethodName = monthlySalaryMethodName[tempKey]; break; }
+				tempMonth--;
+				if (tempMonth < 0) { tempMonth = 11; tempYear--; }
+				if (tempYear < 2000) { currentSalaryMethodName = "暂未设置计薪方式"; break; }
+			}
+		} else {
+			currentSalaryMethodName = "暂未设置计薪方式";
+		}
+		document.getElementById("salaryMethodDisplay").innerText = (currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") ? currentSalaryMethodName : "暂未设置计薪方式";
+		recalcDayBasedAllowances();
+	}
+	
+	function saveCurrentMonthData() {
+		let monthKey = getCurrentMonthKey();
+		monthlyAllowances[monthKey] = JSON.parse(JSON.stringify(settingsAllowances));
+		monthlyDeductions[monthKey] = JSON.parse(JSON.stringify(settingsDeductions));
+		monthlySalaryMethodName[monthKey] = currentSalaryMethodName;
+		setBaseSalaryForMonth(currentYear, currentMonth, baseSalary);
+		saveAllMonthlyData();
+	}
+	
+	function saveAllMonthlyData() {
+		localStorage.setItem("monthlyAllowances", JSON.stringify(monthlyAllowances));
+		localStorage.setItem("monthlyDeductions", JSON.stringify(monthlyDeductions));
+		localStorage.setItem("monthlyBaseSalary", JSON.stringify(monthlyBaseSalary));
+		localStorage.setItem("monthlySalaryMethodName", JSON.stringify(monthlySalaryMethodName));
+		localStorage.setItem("globalSalaryConfigured", globalSalaryConfigured);
+	}
+	
+	function loadAllMonthlyData() {
+		try { monthlyAllowances = JSON.parse(localStorage.getItem("monthlyAllowances") || "{}"); } catch(e) {}
+		try { monthlyDeductions = JSON.parse(localStorage.getItem("monthlyDeductions") || "{}"); } catch(e) {}
+		try { monthlyBaseSalary = JSON.parse(localStorage.getItem("monthlyBaseSalary") || "{}"); } catch(e) {}
+		try { monthlySalaryMethodName = JSON.parse(localStorage.getItem("monthlySalaryMethodName") || "{}"); } catch(e) {}
+		try { globalSalaryConfigured = JSON.parse(localStorage.getItem("globalSalaryConfigured") || "false"); } catch(e) {}
+	}
+	
+	function reuseLastMonthData() {
+		let lastMonth = currentMonth - 1, lastYear = currentYear;
+		if (lastMonth < 0) { lastMonth = 11; lastYear--; }
+		let lastMonthKey = `${lastYear}-${lastMonth + 1}`, currentMonthKey = getCurrentMonthKey();
+		if (monthlyAllowances[lastMonthKey]) monthlyAllowances[currentMonthKey] = JSON.parse(JSON.stringify(monthlyAllowances[lastMonthKey]));
+		if (monthlyDeductions[lastMonthKey]) monthlyDeductions[currentMonthKey] = JSON.parse(JSON.stringify(monthlyDeductions[lastMonthKey]));
+		if (monthlySalaryMethodName[lastMonthKey]) monthlySalaryMethodName[currentMonthKey] = monthlySalaryMethodName[lastMonthKey];
+		loadDataForCurrentMonth();
+		renderSettingsAllowancesDeductions();
+		updateIncomeCardDisplay();
+		updateStats();
+		saveAllMonthlyData();
+		showToast("已复用上月数据");
+	}
+	
+	function z_saveSubDed() {
+		recalcDayBasedAllowances();
+		saveCurrentMonthData();
+		renderSettingsAllowancesDeductions();
+		updateIncomeCardDisplay();
+		updateStats();
+	}
+	
+	let z_editTarget = null, z_isEditing = false, z_selectedType = null, z_calcType = 'month', z_customName = '', z_dayAuto = true, z_dedSubType = 'fixed', z_hourAuto = true, z_leaveSubType = 'fixed';
+	const z_subsidyOpts = ['伙食补贴', '夜班补贴', '高温补贴', '绩效补贴', '住房补贴', '全勤奖', '交通补贴', '工龄补贴', '其它项目'];
+	const z_fullAttend = ['全勤奖'];
+	const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
+	const z_percentDeds = ['社保扣款', '公积金扣款'];
+	const z_leaveDeds = ['事假扣款', '病假扣款'];
+	
+	function formatMoney(value) {
+		if (value === undefined || value === null) return '0';
+		let num = parseFloat(value);
+		if (isNaN(num)) return '0';
+		if (Number.isInteger(num)) return num.toString();
+		return num.toFixed(2).replace(/\.?0+$/, '');
+	}
+	
+	function z_getAutoDays() { let days = 0; for (let r of records) { let [y,m] = r.date.split('-'); if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "晚班") days++; } return days; }
+	
+	function z_getAutoHoursForDed() {
+		let hours = 0;
+		for (let r of records) {
+			let [y,m] = r.date.split('-');
+			if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "休息") {
+				if (z_selectedType === '事假扣款' && r.type === "personal") hours += r.hours || 0;
+				if (z_selectedType === '病假扣款' && r.type === "sick") hours += r.hours || 0;
+			}
+		}
+		return hours;
+	}
+	
+	function isWorkdayForAttendance(year, month, day) {
+		let date = new Date(year, month, day);
+		let dayOfWeek = date.getDay();
+		if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+		if (isStatutoryHoliday(year, month + 1, day)) return false;
+		return true;
+	}
+	
+	function hasWorkdayPersonalOrSickLeave() {
+		let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+		for (let d = 1; d <= daysInMonth; d++) {
+			if (isWorkdayForAttendance(currentYear, currentMonth, d)) {
+				let dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+				let rec = getDayRecords(dateStr)[0];
+				if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) return true;
+			}
+		}
+		return false;
+	}
+	
+	function getLeaveHoursForDisplay(rec) {
+		if (!rec || rec.shift !== "休息") return 0;
+		return rec.hours && rec.hours > 0 ? rec.hours : 8;
+	}
+	
+	function z_getHourly() { return baseSalary / 21.75 / 8; }
+	function z_escape(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
+	function z_showToast(msg) { showToast(msg); }
+	
+	function getCurrentMonthAttendanceDays() {
+		let days = 0;
+		let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
+		let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
+		let attendanceDates = new Set();
+		for (let r of records) {
+			if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+				attendanceDates.add(r.date);
+			}
+		}
+		return attendanceDates.size;
+	}
+	
+	function getMonthWorkdayCount(year, month) {
+		let daysInMonth = new Date(year, month + 1, 0).getDate();
+		let workdayCount = 0;
+		for (let d = 1; d <= daysInMonth; d++) {
+			let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+			let tiaoxiu = getTiaoxiu(year, dateStr);
+			let isHoliday = isStatutoryHoliday(year, month + 1, d);
+			let date = new Date(year, month, d);
+			let isWeekend = (date.getDay() === 0 || date.getDay() === 6 || tiaoxiu.isFangjia);
+			let isWorkday = !isHoliday && !isWeekend && !tiaoxiu.isJiaban;
+			if (isWorkday) workdayCount++;
+		}
+		return workdayCount;
+	}
+	
+	function getMonthStandardHours(year, month) {
+		return getMonthWorkdayCount(year, month) * 8;
+	}
+	
+	function computeFullAttendanceAmount(item) {
+		let fullAmount = item.fullAmount || 0;
+		if (fullAmount <= 0) return 0;
+		let totalWorkdays = getMonthWorkdayCount(currentYear, currentMonth);
+		if (totalWorkdays === 0) return 0;
+		let dailyRate = fullAmount / totalWorkdays;
+		let attendedWorkdays = 0;
+		let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+		for (let d = 1; d <= daysInMonth; d++) {
+			let dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+			let tiaoxiu = getTiaoxiu(currentYear, dateStr);
+			let isHoliday = isStatutoryHoliday(currentYear, currentMonth + 1, d);
+			let date = new Date(currentYear, currentMonth, d);
+			let isWeekend = (date.getDay() === 0 || date.getDay() === 6 || tiaoxiu.isFangjia);
+			let isWorkday = !isHoliday && !isWeekend && !tiaoxiu.isJiaban;
+			if (isWorkday) {
+				let rec = getDayRecords(dateStr)[0];
+				if (rec && rec.shift !== "休息" && rec.type !== "salary") attendedWorkdays++;
+			}
+		}
+		if (hasWorkdayPersonalOrSickLeave()) return 0;
+		return dailyRate * attendedWorkdays;
+	}
+	
+	function recalcDayBasedAllowances() {
+		let attendanceDays = getCurrentMonthAttendanceDays();
+		let nightDays = z_getAutoDays();
+		for (let i = 0; i < settingsAllowances.length; i++) {
+			let item = settingsAllowances[i];
+			if (item.name === '全勤奖') { item.amount = computeFullAttendanceAmount(item); continue; }
+			if (item.calcType === 'day') {
+				let dailyRate = item.dayPrice || 0, usedDays = 0;
+				if (item.autoDays === true) usedDays = (item.name === '夜班补贴') ? nightDays : attendanceDays;
+				else usedDays = Math.min(attendanceDays, item.dayCount || 0);
+				item.currentDays = usedDays;
+				item.amount = dailyRate * usedDays;
+			}
+		}
+	}
+	
+	function z_exists(name, type, exclude = -1) {
+		if (type === 'subsidy') return settingsAllowances.some((i, idx) => idx !== exclude && i.name === name);
+		return settingsDeductions.some((i, idx) => idx !== exclude && i.name === name);
+	}
+	
+	let z_timer = null;
+	function z_startTimer(cb) { z_timer = setTimeout(cb, 500); }
+	function z_cancelTimer() { if (z_timer) { clearTimeout(z_timer); z_timer = null; } }
+	
+	function z_showDeleteConfirm(msg, onConfirm) {
+		document.getElementById('z_delMsg').innerText = msg;
+		let confirmBtn = document.getElementById('z_confirmDel');
+		let newBtn = confirmBtn.cloneNode(true);
+		confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+		newBtn.onclick = () => { onConfirm(); document.getElementById('z_delModal').style.display = 'none'; showToast("已删除"); };
+		document.getElementById('z_closeDelModal').onclick = () => document.getElementById('z_delModal').style.display = 'none';
+		document.getElementById('z_cancelDel').onclick = () => document.getElementById('z_delModal').style.display = 'none';
+		document.getElementById('z_delModal').style.display = 'flex';
+	}
+	
+	function renderSettingsAllowancesDeductions() {
+		recalcDayBasedAllowances();
+		let subTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
+		let dedTotal = settingsDeductions.reduce((s, d) => s + (d.amount || 0), 0);
+		document.getElementById("settingsSubTotal").innerText = "+¥" + formatMoney(subTotal);
+		document.getElementById("settingsDedTotal").innerText = "-¥" + formatMoney(dedTotal);
+		let subHtml = '';
+		settingsAllowances.forEach((item, idx) => {
+			subHtml += `<div class="subded-item" data-idx="${idx}" data-type="subsidy"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#2e7d32">+¥${formatMoney(item.amount)}</div></div>`;
+		});
+		document.getElementById("settingsSubsidyList").innerHTML = subHtml;
+		document.querySelectorAll("#settingsSubsidyList .subded-item").forEach(el => {
+			let idx = parseInt(el.dataset.idx);
+			el.onclick = (e) => { e.stopPropagation(); z_editSubsidyItem(idx); };
+			el.ontouchstart = (e) => { e.stopPropagation(); z_startTimer(() => z_showDeleteConfirm(`确定删除补贴「${settingsAllowances[idx].name}」吗？`, () => { settingsAllowances.splice(idx, 1); z_saveSubDed(); })); };
+			el.ontouchend = z_cancelTimer;
+			el.ontouchmove = z_cancelTimer;
+		});
+		let dedHtml = '';
+		settingsDeductions.forEach((item, idx) => {
+			dedHtml += `<div class="subded-item" data-idx="${idx}" data-type="deduction"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#c62828">-¥${formatMoney(item.amount)}</div></div>`;
+		});
+		document.getElementById("settingsDeductionList").innerHTML = dedHtml;
+		document.querySelectorAll("#settingsDeductionList .subded-item").forEach(el => {
+			let idx = parseInt(el.dataset.idx);
+			el.onclick = (e) => { e.stopPropagation(); z_editDeductionItem(idx); };
+			el.ontouchstart = (e) => { e.stopPropagation(); z_startTimer(() => z_showDeleteConfirm(`确定删除扣款「${settingsDeductions[idx].name}」吗？`, () => { settingsDeductions.splice(idx, 1); z_saveSubDed(); })); };
+			el.ontouchend = z_cancelTimer;
+			el.ontouchmove = z_cancelTimer;
+		});
+		updateIncomeCardDisplay();
+	}
+	
+	function z_editSubsidyItem(idx) {
+		let item = settingsAllowances[idx];
+		z_editTarget = { type: 'subsidy', index: idx, item: item };
+		z_isEditing = true;
+		document.getElementById('z_subTitle').innerText = `编辑${item.name}`;
+		// 编辑模式下：隐藏类型选择区域，并移除其占位空间
+		const typeSection = document.querySelector('#z_subPage .z_typeSection');
+		if (typeSection) {
+			typeSection.style.display = 'none';
+			typeSection.style.margin = '0';
+			typeSection.style.padding = '0';
+			typeSection.style.height = '0';
+		}
+		// 调整卡片的上边距，让内容紧贴导航栏
+		const normalCard = document.getElementById('z_normalCard');
+		const fullCard = document.getElementById('z_fullCard');
+		if (normalCard) normalCard.style.marginTop = '0';
+		if (fullCard) fullCard.style.marginTop = '0';
+		
+		if (z_fullAttend.includes(item.name)) {
+			document.getElementById('z_normalCard').style.display = 'none';
+			document.getElementById('z_fullCard').style.display = 'block';
+			document.getElementById('z_subFull').value = item.fullAmount || item.amount || '';
+			document.getElementById('z_hintText').innerHTML = '全勤奖：按工作日累计发放，请假则归零';
+			z_selectedType = item.name;
+			document.getElementById('z_subPage').classList.add('z_show');
+			return;
+		}
+		document.getElementById('z_normalCard').style.display = 'block';
+		document.getElementById('z_fullCard').style.display = 'none';
+		let isPreset = z_subsidyOpts.includes(item.name);
+		if (!isPreset || item.name === '其它项目') {
+			document.getElementById('z_customNameItem').style.display = 'flex';
+			document.getElementById('z_subName').value = item.customName || item.name;
+			z_customName = item.customName || item.name;
+			z_selectedType = null;
+			z_updateLabels(z_customName);
+		} else {
+			document.getElementById('z_customNameItem').style.display = 'none';
+			z_customName = item.name;
+			z_selectedType = item.name;
+			z_updateLabels(item.name);
+		}
+		z_calcType = item.calcType || 'month';
+		z_dayAuto = (item.autoDays !== undefined) ? item.autoDays : true;
+		document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(btn => {
+			if (btn.dataset.type === z_calcType) btn.classList.add('z_active');
+			else btn.classList.remove('z_active');
+		});
+		if (z_calcType === 'month') {
+			document.getElementById('z_monthArea').style.display = 'block';
+			document.getElementById('z_dayArea').style.display = 'none';
+			document.getElementById('z_subMonth').value = item.amount || '';
+			document.getElementById('z_hintText').innerHTML = `按月计算：每月固定${z_customName}金额`;
+		} else {
+			document.getElementById('z_monthArea').style.display = 'none';
+			document.getElementById('z_dayArea').style.display = 'block';
+			document.getElementById('z_subDayPrice').value = item.dayPrice || '';
+			if (!z_dayAuto && item.dayCount !== undefined) document.getElementById('z_subDayCount').value = item.dayCount;
+			z_updateDayUI();
+		}
+		document.getElementById('z_subPage').classList.add('z_show');
+	}
+	
+	function z_editDeductionItem(idx) {
+		let item = settingsDeductions[idx];
+		z_editTarget = { type: 'deduction', index: idx, item: item };
+		z_isEditing = true;
+		document.getElementById('z_dedTitle').innerText = `编辑${item.name}`;
+		// 编辑模式下：隐藏类型选择区域，并移除其占位空间
+		const typeSection = document.querySelector('#z_dedPage .z_typeSection');
+		if (typeSection) {
+			typeSection.style.display = 'none';
+			typeSection.style.margin = '0';
+			typeSection.style.padding = '0';
+			typeSection.style.height = '0';
+		}
+		// 调整卡片的上边距
+		const bigCard = document.querySelector('#z_dedPage .z_bigCard');
+		if (bigCard) bigCard.style.marginTop = '0';
+		
+		z_selectedType = item.name;
+		document.getElementById('z_dedSubSwitch').style.display = 'none';
+		document.getElementById('z_leaveSubSwitch').style.display = 'none';
+		document.getElementById('z_leaveHourArea').style.display = 'none';
+		document.getElementById('z_dedFixedArea').style.display = 'block';
+		document.getElementById('z_dedPercentArea').style.display = 'none';
+		document.getElementById('z_dedUnit').innerText = '元/月';
+		document.getElementById('z_dedHint').innerHTML = '按月固定扣款金额';
+		if (z_percentDeds.includes(item.name)) {
+			document.getElementById('z_dedSubSwitch').style.display = 'flex';
+			z_dedSubType = item.subType || 'fixed';
+			if (z_dedSubType === 'fixed') {
+				document.getElementById('z_dedFixedArea').style.display = 'block';
+				document.getElementById('z_dedPercentArea').style.display = 'none';
+				document.getElementById('z_dedUnit').innerText = '元/月';
+				document.getElementById('z_dedAmount').value = item.amount || '';
+			} else {
+				document.getElementById('z_dedFixedArea').style.display = 'none';
+				document.getElementById('z_dedPercentArea').style.display = 'block';
+				document.getElementById('z_dedPercent').value = item.percent || '';
+				z_updatePercentDetail();
+			}
+			document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn => {
+				if (btn.dataset.subtype === z_dedSubType) btn.classList.add('z_active');
+				else btn.classList.remove('z_active');
+			});
+		} else if (z_leaveDeds.includes(item.name)) {
+			document.getElementById('z_leaveSubSwitch').style.display = 'flex';
+			document.getElementById('z_leaveHourArea').style.display = 'block';
+			z_hourAuto = (item.autoHours !== undefined) ? item.autoHours : true;
+			z_leaveSubType = item.leaveSubType || 'fixed';
+			if (z_leaveSubType === 'fixed') {
+				document.getElementById('z_dedFixedArea').style.display = 'block';
+				document.getElementById('z_dedPercentArea').style.display = 'none';
+				document.getElementById('z_dedUnit').innerText = '元/小时';
+				document.getElementById('z_dedAmount').value = item.hourlyRate || '';
+			} else {
+				document.getElementById('z_dedFixedArea').style.display = 'none';
+				document.getElementById('z_dedPercentArea').style.display = 'block';
+				document.getElementById('z_dedPercent').value = item.percent || '';
+				z_updatePercentDetail();
+			}
+			document.querySelectorAll('#z_leaveSubSwitch .z_subCalcSwitchBtn').forEach(btn => {
+				if (btn.dataset.subtype === z_leaveSubType) btn.classList.add('z_active');
+				else btn.classList.remove('z_active');
+			});
+			z_updateHourUI();
+			document.getElementById('z_dedHint').innerHTML = z_hourAuto ? "时长自动获取，请输入扣款金额" : "请输入扣款金额和时长";
+		} else {
+			document.getElementById('z_dedAmount').value = item.amount || '';
+		}
+		if (item.name === '其它项目' || !z_deductionOpts.includes(item.name)) {
+			document.getElementById('z_dedCustomItem').style.display = 'flex';
+			document.getElementById('z_dedName').value = item.customName || item.name;
+			document.getElementById('z_dedLabel').innerHTML = `${item.customName || item.name}金额`;
+			z_selectedType = null;
+		} else {
+			document.getElementById('z_dedCustomItem').style.display = 'none';
+			document.getElementById('z_dedLabel').innerHTML = `${item.name}金额`;
+		}
+		document.getElementById('z_dedPage').classList.add('z_show');
+	}
+	
+	function z_updateLabels(name) {
+		document.getElementById('z_monthLabel').innerHTML = `${name}金额`;
+		document.getElementById('z_dayPriceLabel').innerHTML = `${name}金额`;
+		if (name === '夜班补贴') {
+			document.getElementById('z_dayCountLabel').innerHTML = `自动获取夜班天数`;
+			document.getElementById('z_manualDayLabel').innerHTML = `夜班补贴天数`;
+			document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取夜班天数（${z_getAutoDays()}天）`;
+		} else {
+			document.getElementById('z_dayCountLabel').innerHTML = `自动获取${name}天数`;
+			document.getElementById('z_manualDayLabel').innerHTML = `${name}天数`;
+			document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getCurrentMonthAttendanceDays()}天）`;
+		}
+	}
+	
+	function z_onSubType(name) {
+		z_selectedType = name;
+		z_customName = name;
+		if (z_fullAttend.includes(name)) {
+			document.getElementById('z_normalCard').style.display = 'none';
+			document.getElementById('z_fullCard').style.display = 'block';
+			document.getElementById('z_subFull').value = '';
+			document.getElementById('z_hintText').innerHTML = '全勤奖：按工作日累计发放，请假则归零';
+		} else {
+			document.getElementById('z_normalCard').style.display = 'block';
+			document.getElementById('z_fullCard').style.display = 'none';
+			if (name === '其它项目') {
+				document.getElementById('z_customNameItem').style.display = 'flex';
+				document.getElementById('z_subName').value = '';
+				z_updateLabels('请输入');
+				document.getElementById('z_hintText').innerHTML = '请输入补贴金额';
+			} else {
+				document.getElementById('z_customNameItem').style.display = 'none';
+				z_updateLabels(name);
+				document.getElementById('z_hintText').innerHTML = `按月计算：每月固定${name}金额`;
+			}
+			z_calcType = 'month';
+			z_dayAuto = true;
+			document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(btn => {
+				if (btn.dataset.type === 'month') btn.classList.add('z_active');
+				else btn.classList.remove('z_active');
+			});
+			document.getElementById('z_monthArea').style.display = 'block';
+			document.getElementById('z_dayArea').style.display = 'none';
+			document.getElementById('z_subMonth').value = '';
+		}
+	}
+	
+	function z_updatePercentDetail() {
+		let p = parseFloat(document.getElementById('z_dedPercent').value) || 0;
+		if (z_leaveDeds.includes(z_selectedType)) {
+			let hourly = z_getHourly();
+			let amt = hourly * p / 100;
+			document.getElementById('z_percentLabel').innerHTML = '扣款比例（从小时工资计算）';
+			document.getElementById('z_percentText').innerHTML = `小时工资 ${hourly.toFixed(2)}元/小时 × ${p}% = ${amt.toFixed(2)}元/小时`;
+		} else if (z_percentDeds.includes(z_selectedType)) {
+			let amt = baseSalary * p / 100;
+			document.getElementById('z_percentLabel').innerHTML = '扣款比例（从底薪计算）';
+			document.getElementById('z_percentText').innerHTML = `底薪 ${baseSalary}元 × ${p}% = ${amt.toFixed(2)}元`;
+		}
+	}
+	
+	function z_updateHourUI() {
+		const name = z_selectedType === '事假扣款' ? '事假' : '病假';
+		document.getElementById('z_autoHourLabel').innerHTML = `自动获取${name}时长`;
+		document.getElementById('z_manualHourLabel').innerHTML = `本月${name}时长`;
+		if (z_hourAuto) {
+			document.getElementById('z_autoHourModeArea').style.display = 'flex';
+			document.getElementById('z_manualHourModeArea').style.display = 'none';
+			document.getElementById('z_hourToggle').classList.add('z_active');
+			let hours = 0;
+			for (let r of records) {
+				let [y,m] = r.date.split('-');
+				if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "休息") {
+					if (z_selectedType === '事假扣款' && r.type === "personal") hours += r.hours || 0;
+					if (z_selectedType === '病假扣款' && r.type === "sick") hours += r.hours || 0;
+				}
+			}
+			document.getElementById('z_autoHourHint').innerHTML = `从记加班自动获取时长（${hours}小时）`;
+		} else {
+			document.getElementById('z_autoHourModeArea').style.display = 'none';
+			document.getElementById('z_manualHourModeArea').style.display = 'flex';
+			document.getElementById('z_hourToggle').classList.remove('z_active');
+		}
+	}
+	
+	function z_updateDayUI() {
+		const name = z_customName || '补贴';
+		if (name === '夜班补贴') {
+			document.getElementById('z_dayCountLabel').innerHTML = `自动获取夜班天数`;
+			document.getElementById('z_manualDayLabel').innerHTML = `夜班补贴天数`;
+			if (z_dayAuto) {
+				document.getElementById('z_autoModeArea').style.display = 'flex';
+				document.getElementById('z_manualModeArea').style.display = 'none';
+				document.getElementById('z_dayToggle').classList.add('z_active');
+				document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取夜班天数（${z_getAutoDays()}天）`;
+			} else {
+				document.getElementById('z_autoModeArea').style.display = 'none';
+				document.getElementById('z_manualModeArea').style.display = 'flex';
+				document.getElementById('z_dayToggle').classList.remove('z_active');
+			}
+		} else {
+			document.getElementById('z_dayCountLabel').innerHTML = `自动获取${name}天数`;
+			document.getElementById('z_manualDayLabel').innerHTML = `${name}天数`;
+			if (z_dayAuto) {
+				document.getElementById('z_autoModeArea').style.display = 'flex';
+				document.getElementById('z_manualModeArea').style.display = 'none';
+				document.getElementById('z_dayToggle').classList.add('z_active');
+				document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getCurrentMonthAttendanceDays()}天）`;
+			} else {
+				document.getElementById('z_autoModeArea').style.display = 'none';
+				document.getElementById('z_manualModeArea').style.display = 'flex';
+				document.getElementById('z_dayToggle').classList.remove('z_active');
+			}
+		}
+		document.getElementById('z_hintText').innerHTML = z_dayAuto ? `按天计算：请输入每天${name}金额` : `按天计算：请输入每天${name}金额和天数`;
+	}
+	
+	function z_switchCalc(type) {
+		z_calcType = type;
+		if (type === 'month') {
+			document.getElementById('z_monthArea').style.display = 'block';
+			document.getElementById('z_dayArea').style.display = 'none';
+			document.getElementById('z_subMonth').value = '';
+			document.getElementById('z_hintText').innerHTML = z_customName ? `按月计算：每月固定${z_customName}金额` : '按月计算：每月固定金额';
+		} else {
+			document.getElementById('z_monthArea').style.display = 'none';
+			document.getElementById('z_dayArea').style.display = 'block';
+			document.getElementById('z_subDayPrice').value = '';
+			document.getElementById('z_subDayCount').value = '';
+			z_updateDayUI();
+		}
+	}
+	
+	function z_toggleDayAuto() { z_dayAuto = !z_dayAuto; z_updateDayUI(); }
+	function z_toggleHourAuto() { z_hourAuto = !z_hourAuto; z_updateHourUI(); }
+	
+	function z_renderSubBtnsForAdd() {
+		let html = '';
+		z_subsidyOpts.forEach(opt => {
+			let exists = z_exists(opt, 'subsidy');
+			if (exists) html += `<div class="z_typeBtn z_exists" data-name="${opt}">${opt}</div>`;
+			else html += `<div class="z_typeBtn" data-name="${opt}">${opt}</div>`;
+		});
+		document.getElementById('z_subGrid').innerHTML = html;
+		document.querySelectorAll('#z_subGrid .z_typeBtn:not(.z_exists)').forEach(btn => {
+			btn.onclick = () => {
+				document.querySelectorAll('#z_subGrid .z_typeBtn').forEach(b => b.classList.remove('z_selected'));
+				btn.classList.add('z_selected');
+				z_onSubType(btn.dataset.name);
+			};
+		});
+		document.querySelectorAll('#z_subGrid .z_typeBtn.z_exists').forEach(btn => {
+			btn.onclick = () => z_showToast("该项目已添加，不可重复添加");
+		});
+		document.getElementById('z_subName').oninput = () => { let val = document.getElementById('z_subName').value.trim(); if (val) { z_customName = val; z_updateLabels(val); } };
+	}
+	
+	function z_openAddSub() {
+		z_editTarget = null; z_isEditing = false;
+		document.getElementById('z_subTitle').innerText = "新增补贴";
+		// 新增模式下：恢复类型选择区域的显示
+		const typeSection = document.querySelector('#z_subPage .z_typeSection');
+		if (typeSection) {
+			typeSection.style.display = 'block';
+			typeSection.style.margin = '';
+			typeSection.style.padding = '';
+			typeSection.style.height = '';
+		}
+		const normalCard = document.getElementById('z_normalCard');
+		const fullCard = document.getElementById('z_fullCard');
+		if (normalCard) normalCard.style.marginTop = '';
+		if (fullCard) fullCard.style.marginTop = '';
+		
+		document.querySelector('#z_subPage .z_typeSection').style.display = 'block';
+		z_selectedType = null; z_customName = '补贴'; z_dayAuto = true;
+		document.getElementById('z_normalCard').style.display = 'block';
+		document.getElementById('z_fullCard').style.display = 'none';
+		document.getElementById('z_customNameItem').style.display = 'none';
+		document.getElementById('z_monthArea').style.display = 'block';
+		document.getElementById('z_dayArea').style.display = 'none';
+		z_updateLabels('补贴');
+		document.getElementById('z_subMonth').value = '';
+		document.getElementById('z_hintText').innerHTML = '按月计算：每月固定金额';
+		z_calcType = 'month';
+		document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(btn => {
+			if (btn.dataset.type === 'month') btn.classList.add('z_active');
+			else btn.classList.remove('z_active');
+		});
+		z_renderSubBtnsForAdd();
+		document.getElementById('z_subPage').classList.add('z_show');
+	}
+	
+	function z_saveSub() {
+		let finalName = z_selectedType;
+		let custom = document.getElementById('z_subName').value.trim();
+		if ((z_selectedType === '其它项目' || (!z_selectedType && custom))) {
+			if (!custom) { z_showToast("请输入项目名称"); return; }
+			finalName = custom;
+		}
+		if (!finalName) { z_showToast("请选择补贴类型"); return; }
+		if (z_editTarget) {
+			if (finalName !== z_editTarget.item.name && z_exists(finalName, 'subsidy', z_editTarget.index)) { z_showToast(`项目「${finalName}」已存在`); return; }
+		} else {
+			if (z_exists(finalName, 'subsidy')) { z_showToast(`项目「${finalName}」已存在`); return; }
+		}
+		if (z_fullAttend.includes(finalName)) {
+			let amount = parseFloat(document.getElementById('z_subFull').value) || 0;
+			let newItem = { name: finalName, amount: 0, fullAmount: amount, calcType: 'full' };
+			if (z_editTarget) settingsAllowances[z_editTarget.index] = newItem;
+			else settingsAllowances.push(newItem);
+			z_saveSubDed(); z_closeSubPage(); return;
+		}
+		let amount = 0, calcType = 'month', dayPrice = 0, dayCount = 0;
+		if (z_calcType === 'month') {
+			amount = parseFloat(document.getElementById('z_subMonth').value) || 0;
+		} else {
+			dayPrice = parseFloat(document.getElementById('z_subDayPrice').value) || 0;
+			if (z_dayAuto) dayCount = 0;
+			else dayCount = parseFloat(document.getElementById('z_subDayCount').value) || 0;
+			amount = dayPrice * Math.min(getCurrentMonthAttendanceDays(), dayCount > 0 ? dayCount : Infinity);
+		}
+		let customName = (!z_subsidyOpts.includes(finalName) && finalName !== '全勤奖') ? finalName : (z_selectedType === '其它项目' ? custom : undefined);
+		let newItem = { name: finalName, amount: amount, calcType: z_calcType, dayPrice: dayPrice, dayCount: dayCount, autoDays: z_dayAuto, customName: customName, currentDays: 0 };
+		if (z_editTarget) settingsAllowances[z_editTarget.index] = newItem;
+		else settingsAllowances.push(newItem);
+		z_saveSubDed(); z_closeSubPage();
+	}
+	
+	function z_renderDedBtnsForAdd() {
+		let html = '';
+		z_deductionOpts.forEach(opt => {
+			let exists = z_exists(opt, 'deduction');
+			if (exists) html += `<div class="z_typeBtn z_exists" data-name="${opt}">${opt}</div>`;
+			else html += `<div class="z_typeBtn" data-name="${opt}">${opt}</div>`;
+		});
+		document.getElementById('z_dedGrid').innerHTML = html;
+		document.querySelectorAll('#z_dedGrid .z_typeBtn:not(.z_exists)').forEach(btn => {
+			btn.onclick = () => {
+				document.querySelectorAll('#z_dedGrid .z_typeBtn').forEach(b => b.classList.remove('z_selected'));
+				btn.classList.add('z_selected');
+				let name = btn.dataset.name;
+				z_selectedType = name;
+				document.getElementById('z_dedSubSwitch').style.display = 'none';
+				document.getElementById('z_leaveSubSwitch').style.display = 'none';
+				document.getElementById('z_leaveHourArea').style.display = 'none';
+				document.getElementById('z_dedFixedArea').style.display = 'block';
+				document.getElementById('z_dedPercentArea').style.display = 'none';
+				document.getElementById('z_dedUnit').innerText = '元/月';
+				document.getElementById('z_dedHint').innerHTML = '按月固定扣款金额';
+				document.getElementById('z_dedAmount').value = '';
+				document.getElementById('z_dedPercent').value = '';
+				z_dedSubType = 'fixed';
+				z_hourAuto = true;
+				z_leaveSubType = 'fixed';
+				if (z_percentDeds.includes(name)) {
+					document.getElementById('z_dedSubSwitch').style.display = 'flex';
+					document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn2 => {
+						if (btn2.dataset.subtype === 'fixed') btn2.classList.add('z_active');
+						else btn2.classList.remove('z_active');
+					});
+					document.getElementById('z_dedUnit').innerText = '元/月';
+				} else if (z_leaveDeds.includes(name)) {
+					document.getElementById('z_leaveSubSwitch').style.display = 'flex';
+					document.getElementById('z_leaveHourArea').style.display = 'block';
+					document.querySelectorAll('#z_leaveSubSwitch .z_subCalcSwitchBtn').forEach(btn2 => {
+						if (btn2.dataset.subtype === 'fixed') btn2.classList.add('z_active');
+						else btn2.classList.remove('z_active');
+					});
+					z_updateHourUI();
+					document.getElementById('z_dedUnit').innerText = '元/小时';
+				}
+				document.getElementById('z_dedLabel').innerHTML = `${name}金额`;
+				if (name === '其它项目') {
+					document.getElementById('z_dedCustomItem').style.display = 'flex';
+					document.getElementById('z_dedName').value = '';
+					document.getElementById('z_dedName').oninput = () => { let v = document.getElementById('z_dedName').value.trim(); if(v) document.getElementById('z_dedLabel').innerHTML = `${v}金额`; };
+				} else {
+					document.getElementById('z_dedCustomItem').style.display = 'none';
+				}
+			};
+		});
+		document.querySelectorAll('#z_dedGrid .z_typeBtn.z_exists').forEach(btn => {
+			btn.onclick = () => z_showToast("该项目已添加，不可重复添加");
+		});
+	}
+	
+	function z_openAddDed() {
+		z_editTarget = null; z_isEditing = false;
+		document.getElementById('z_dedTitle').innerText = "新增扣款";
+		// 新增模式下：恢复类型选择区域的显示
+		const typeSection = document.querySelector('#z_dedPage .z_typeSection');
+		if (typeSection) {
+			typeSection.style.display = 'block';
+			typeSection.style.margin = '';
+			typeSection.style.padding = '';
+			typeSection.style.height = '';
+		}
+		const bigCard = document.querySelector('#z_dedPage .z_bigCard');
+		if (bigCard) bigCard.style.marginTop = '';
+		
+		document.querySelector('#z_dedPage .z_typeSection').style.display = 'block';
+		document.getElementById('z_dedCustomItem').style.display = 'none';
+		document.getElementById('z_dedFixedArea').style.display = 'block';
+		document.getElementById('z_dedPercentArea').style.display = 'none';
+		document.getElementById('z_dedSubSwitch').style.display = 'none';
+		document.getElementById('z_leaveSubSwitch').style.display = 'none';
+		document.getElementById('z_leaveHourArea').style.display = 'none';
+		document.getElementById('z_dedUnit').innerText = '元/月';
+		document.getElementById('z_dedHint').innerHTML = '按月固定扣款金额';
+		z_selectedType = null;
+		document.getElementById('z_dedAmount').value = '';
+		document.getElementById('z_dedPercent').value = '';
+		z_dedSubType = 'fixed';
+		z_hourAuto = true;
+		z_leaveSubType = 'fixed';
+		z_renderDedBtnsForAdd();
+		document.getElementById('z_dedPage').classList.add('z_show');
+	}
+	
+	function z_saveDed() {
+		let finalName = z_selectedType;
+		let custom = document.getElementById('z_dedName').value.trim();
+		if ((z_selectedType === '其它项目' || (!z_selectedType && custom))) {
+			if (!custom) { z_showToast("请输入项目名称"); return; }
+			finalName = custom;
+		}
+		if (!finalName) { z_showToast("请选择扣款类型"); return; }
+		if (z_editTarget) {
+			if (finalName !== z_editTarget.item.name && z_exists(finalName, 'deduction', z_editTarget.index)) { z_showToast(`项目「${finalName}」已存在`); return; }
+		} else {
+			if (z_exists(finalName, 'deduction')) { z_showToast(`项目「${finalName}」已存在`); return; }
+		}
+		let amount = 0;
+		let newItem = { name: finalName, customName: (z_selectedType === '其它项目' || !z_deductionOpts.includes(finalName)) ? finalName : undefined };
+		if (z_percentDeds.includes(finalName)) {
+			newItem.subType = z_dedSubType;
+			if (z_dedSubType === 'fixed') {
+				amount = parseFloat(document.getElementById('z_dedAmount').value) || 0;
+			} else {
+				let p = parseFloat(document.getElementById('z_dedPercent').value) || 0;
+				amount = baseSalary * p / 100;
+				newItem.percent = p;
+			}
+			newItem.amount = amount;
+		} else if (z_leaveDeds.includes(finalName)) {
+			newItem.leaveSubType = z_leaveSubType;
+			newItem.autoHours = z_hourAuto;
+			let hours = z_hourAuto ? z_getAutoHoursForDed() : (parseFloat(document.getElementById('z_dedHours').value) || 0);
+			newItem.hours = hours;
+			if (z_leaveSubType === 'fixed') {
+				let hr = parseFloat(document.getElementById('z_dedAmount').value) || 0;
+				amount = hr * hours;
+				newItem.hourlyRate = hr;
+			} else {
+				let p = parseFloat(document.getElementById('z_dedPercent').value) || 0;
+				let hr = z_getHourly() * p / 100;
+				amount = hr * hours;
+				newItem.hourlyRate = hr;
+				newItem.percent = p;
+			}
+			newItem.amount = amount;
+		} else {
+			amount = parseFloat(document.getElementById('z_dedAmount').value) || 0;
+			newItem.amount = amount;
+		}
+		if (z_editTarget) settingsDeductions[z_editTarget.index] = newItem;
+		else settingsDeductions.push(newItem);
+		z_saveSubDed(); z_closeDedPage();
+	}
+	
+	function z_closeSubPage() { document.getElementById('z_subPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
+	function z_closeDedPage() { document.getElementById('z_dedPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
+	
+	// ========== 年度汇总函数（按出勤天数折算底薪） ==========
+	function getYearStats() {
+		let currentYearNum = currentYear;
+		let totalIncome = 0, totalOvertimeHours = 0, nightDays = 0, dayDays = 0, restDays = 0, leaveDays = 0, attendanceDays = 0, allowancesTotal = 0, deductionsTotal = 0;
+		
+		for (let month = 0; month < 12; month++) {
+			let monthKey = `${currentYearNum}-${month + 1}`;
+			let monthBaseSalary = monthlyBaseSalary[monthKey] || 0;
+			let monthWorkdayCount = getMonthWorkdayCount(currentYearNum, month);
+			
+			let isCurrentMonth = (month === currentMonth && currentYearNum === currentYear);
+			let monthAllowances = isCurrentMonth ? settingsAllowances : (monthlyAllowances[monthKey] || []);
+			let monthDeductions = isCurrentMonth ? settingsDeductions : (monthlyDeductions[monthKey] || []);
+			
+			for (let a of monthAllowances) {
+				allowancesTotal += (a.amount || 0);
+			}
+			for (let d of monthDeductions) {
+				deductionsTotal += (d.amount || 0);
+			}
+			
+			let monthRecords = records.filter(r => {
+				let [y, m] = r.date.split('-');
+				return parseInt(y) === currentYearNum && parseInt(m) - 1 === month;
+			});
+			
+			let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0;
+			let monthNightDays = 0, monthDayDays = 0, monthRestDays = 0, monthLeaveDays = 0, monthAttendanceSet = new Set();
+			
+			for (let r of monthRecords) {
+				if (r.type === "workday") normalH += r.hours || 0;
+				else if (r.type === "weekend") weekendH += r.hours || 0;
+				else if (r.type === "holiday") holidayH += r.hours || 0;
+				else if (r.type === "salary") salaryIncome += r.amount || 0;
+				
+				if (r.shift === "休息") {
+					if (r.type === "rest" || r.type === "vacation" || r.type === "paid") {
+						monthRestDays++;
+					}
+					if (r.type === "personal" || r.type === "sick") {
+						monthLeaveDays++;
+					}
+				} else if (r.type !== "salary") {
+					monthAttendanceSet.add(r.date);
+					if (r.shift === "白班") monthDayDays++;
+					else if (r.shift === "晚班") monthNightDays++;
+				}
+			}
+			
+			let actualAttendanceDays = monthAttendanceSet.size;
+			let hourlyWage = 0;
+			if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
+				hourlyWage = (monthBaseSalary / monthWorkdayCount / 8);
+			} else {
+				hourlyWage = monthBaseSalary / 21.75 / 8;
+			}
+			let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
+			
+			let monthlyBasePay = 0;
+			if (salaryDisplayMode === 'full') {
+				monthlyBasePay = monthBaseSalary;
+			} else {
+				if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
+					monthlyBasePay = (monthBaseSalary / monthWorkdayCount) * actualAttendanceDays;
+				} else if (actualAttendanceDays > 0) {
+					monthlyBasePay = monthBaseSalary;
+				} else {
+					monthlyBasePay = 0;
+				}
+			}
+			
+			totalIncome += monthlyBasePay + overtimePay + salaryIncome;
+			totalOvertimeHours += normalH + weekendH + holidayH;
+			nightDays += monthNightDays;
+			dayDays += monthDayDays;
+			restDays += monthRestDays;
+			leaveDays += monthLeaveDays;
+			attendanceDays += actualAttendanceDays;
+		}
+		
+		totalIncome = totalIncome + allowancesTotal - deductionsTotal;
+		
+		return { totalIncome, totalOvertimeHours, nightDays, dayDays, restDays, leaveDays, attendanceDays, allowancesTotal, deductionsTotal };
+	}
+	
+	function updateIncomeCardDisplay() {
+		if (showYearStats) {
+			let stats = getYearStats();
+			document.getElementById("incomeCardLabel").innerHTML = "年度汇总";
+			document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalIncome);
+			document.getElementById("incomeCardDetails").style.display = "none";
+			let yearContainer = document.getElementById("yearStatsContainer");
+			yearContainer.style.display = "block";
+			yearContainer.innerHTML = `
+				<div class="year-stats-grid">
+					<div class="year-stat-item"><span class="year-stat-value">${formatMoney(stats.totalIncome)}</span><span class="year-stat-label">总收入</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.totalOvertimeHours.toFixed(1)}</span><span class="year-stat-label">总加班</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.attendanceDays}</span><span class="year-stat-label">出勤天数</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.dayDays}</span><span class="year-stat-label">白班天数</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.nightDays}</span><span class="year-stat-label">夜班天数</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.leaveDays}</span><span class="year-stat-label">请假天数</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">+${formatMoney(stats.allowancesTotal)}</span><span class="year-stat-label">补贴总额</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">-${formatMoney(stats.deductionsTotal)}</span><span class="year-stat-label">扣款总额</span></div>
+					<div class="year-stat-item"><span class="year-stat-value">${stats.restDays}</span><span class="year-stat-label">休息天数</span></div>
+				</div>
+			`;
+		} else {
+			let stats = getCurrentMonthStatsForSettings();
+			document.getElementById("incomeCardLabel").innerHTML = "本月预估收入";
+			document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalSalary);
+			document.getElementById("settingsBaseSalary").innerHTML = formatMoney(baseSalary);
+			document.getElementById("settingsOvertime").innerHTML = formatMoney(stats.overtimePay);
+			document.getElementById("settingsAllowances").innerHTML = formatMoney(stats.allowancesTotal);
+			document.getElementById("settingsDeductions").innerHTML = formatMoney(stats.deductionsTotal);
+			document.getElementById("incomeCardDetails").style.display = "flex";
+			document.getElementById("yearStatsContainer").style.display = "none";
+		}
+	}
+	
+	function bindIncomeCardLongPress() {
+		let card = document.getElementById("incomeCard");
+		let pressTimer = null;
+		card.addEventListener("touchstart", () => {
+			pressTimer = setTimeout(() => {
+				showYearStats = !showYearStats;
+				updateIncomeCardDisplay();
+				showToast(showYearStats ? "已切换至年度汇总" : "已切换至本月收入");
+			}, 500);
+		});
+		card.addEventListener("touchend", () => { if (pressTimer) clearTimeout(pressTimer); });
+		card.addEventListener("touchmove", () => { if (pressTimer) clearTimeout(pressTimer); });
+	}
+	
+	function initSettingsCardSwipe() {
+		let card = document.getElementById("incomeCard");
+		let startX = 0, endX = 0;
+		
+		card.addEventListener("touchstart", (e) => {
+			startX = e.changedTouches[0].screenX;
+		});
+		
+		card.addEventListener("touchend", (e) => {
+			endX = e.changedTouches[0].screenX;
+			let diff = endX - startX;
+			if (Math.abs(diff) < 50) return;
+			
+			if (diff > 0) {
+				if (settingsViewYear === null) {
+					settingsViewYear = currentYear;
+					settingsViewMonth = currentMonth;
+				}
+				settingsViewMonth--;
+				if (settingsViewMonth < 0) {
+					settingsViewMonth = 11;
+					settingsViewYear--;
+				}
+				updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
+				showToast(`查看 ${settingsViewYear}年${settingsViewMonth+1}月收入`);
+			} else {
+				if (settingsViewYear === null) {
+					settingsViewYear = currentYear;
+					settingsViewMonth = currentMonth;
+				}
+				settingsViewMonth++;
+				if (settingsViewMonth > 11) {
+					settingsViewMonth = 0;
+					settingsViewYear++;
+				}
+				updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
+				showToast(`查看 ${settingsViewYear}年${settingsViewMonth+1}月收入`);
+			}
+		});
+	}
+	
+	function updateSettingsCardForMonth(year, month) {
+		let monthKey = `${year}-${month + 1}`;
+		let monthBaseSalary = monthlyBaseSalary[monthKey] || 0;
+		let monthAllowances = monthlyAllowances[monthKey] || [];
+		let monthDeductions = monthlyDeductions[monthKey] || [];
+		
+		let monthRecords = records.filter(r => {
+			let [y, m] = r.date.split('-');
+			return parseInt(y) === year && parseInt(m) - 1 === month;
+		});
+		
+		let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+		for (let r of monthRecords) {
+			if (r.type === "workday") normalH += r.hours || 0;
+			else if (r.type === "weekend") weekendH += r.hours || 0;
+			else if (r.type === "holiday") holidayH += r.hours || 0;
+			else if (r.type === "salary") salaryIncome += r.amount || 0;
+			if (r.shift !== "休息" && r.type !== "salary") attendanceSet.add(r.date);
+		}
+		
+		let actualAttendanceDays = attendanceSet.size;
+		let monthWorkdayCount = getMonthWorkdayCount(year, month);
+		let hourlyWage = 0;
+		if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
+			hourlyWage = (monthBaseSalary / monthWorkdayCount / 8);
+		} else {
+			hourlyWage = monthBaseSalary / 21.75 / 8;
+		}
+		let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
+		
+		let allowancesTotal = 0;
+		for (let a of monthAllowances) {
+			allowancesTotal += (a.amount || 0);
+		}
+		let deductionsTotal = 0;
+		for (let d of monthDeductions) {
+			deductionsTotal += (d.amount || 0);
+		}
+		
+		let monthlyBasePay = 0;
+		if (salaryDisplayMode === 'full') {
+			monthlyBasePay = monthBaseSalary;
+		} else {
+			if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
+				monthlyBasePay = (monthBaseSalary / monthWorkdayCount) * actualAttendanceDays;
+			} else if (actualAttendanceDays > 0) {
+				monthlyBasePay = monthBaseSalary;
+			} else {
+				monthlyBasePay = 0;
+			}
+		}
+		
+		let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
+		
+		document.getElementById("incomeCardLabel").innerHTML = `${year}年${month+1}月预估收入`;
+		document.getElementById("settingsMonthIncome").innerHTML = formatMoney(totalSalary);
+		document.getElementById("settingsBaseSalary").innerHTML = formatMoney(monthBaseSalary);
+		document.getElementById("settingsOvertime").innerHTML = formatMoney(overtimePay);
+		document.getElementById("settingsAllowances").innerHTML = formatMoney(allowancesTotal);
+		document.getElementById("settingsDeductions").innerHTML = formatMoney(deductionsTotal);
+		document.getElementById("incomeCardDetails").style.display = "flex";
+		document.getElementById("yearStatsContainer").style.display = "none";
+	}
+	
+	function resetSettingsCardToCurrent() {
+		settingsViewYear = null;
+		settingsViewMonth = null;
+		updateIncomeCardDisplay();
+	}
+	
+	function getCurrentMonthStatsForSettings() {
+		let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+		for (let r of records) {
+			let [y,m] = r.date.split('-');
+			if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth) {
+				if (r.type === "workday") normalH += r.hours || 0;
+				else if (r.type === "weekend") weekendH += r.hours || 0;
+				else if (r.type === "holiday") holidayH += r.hours || 0;
+				else if (r.type === "salary") salaryIncome += r.amount || 0;
+				if (r.shift !== "休息" && r.type !== "salary") attendanceSet.add(r.date);
+			}
+		}
+		let actualAttendanceDays = attendanceSet.size;
+		let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+		let hourlyWage = 0;
+		if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
+			hourlyWage = (baseSalary / monthWorkdayCount / 8);
+		} else {
+			hourlyWage = baseSalary / 21.75 / 8;
+		}
+		let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
+		let allowancesTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
+		let deductionsTotal = settingsDeductions.reduce((s, d) => s + (d.amount || 0), 0);
+		
+		let monthlyBasePay = 0;
+		if (salaryDisplayMode === 'full') {
+			monthlyBasePay = baseSalary;
+		} else {
+			if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
+				monthlyBasePay = (baseSalary / monthWorkdayCount) * actualAttendanceDays;
+			} else if (actualAttendanceDays > 0) {
+				monthlyBasePay = baseSalary;
+			} else {
+				monthlyBasePay = 0;
+			}
+		}
+		
+		return { totalSalary: monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal, overtimePay, allowancesTotal, deductionsTotal };
+	}
+	
+	function saveBackup() { saveAllMonthlyData(); }
+	
+	function showToast(msg){ let t=document.getElementById("toastMsg"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",1500); }
+	
+	function getHourlyWage() { 
+		let attendanceDays = getCurrentMonthAttendanceDays();
+		let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+		if (monthWorkdayCount > 0 && attendanceDays > 0) {
+			return baseSalary / monthWorkdayCount / 8;
+		}
+		return baseSalary / 21.75 / 8; 
+	}
+	function getMultiplier(t) { return t === "workday" ? 1.5 : (t === "weekend" ? 2 : (t === "holiday" ? 3 : 0)); }
+	function calcIncome(rec) { 
+		if (rec.type === "salary") return rec.amount || 0;
+		if (rec.type === "workday") return (rec.hours || 0) * getHourlyWage() * 1.5;
+		if (rec.type === "weekend") return (rec.hours || 0) * getHourlyWage() * 2;
+		if (rec.type === "holiday") return (rec.hours || 0) * getHourlyWage() * 3;
+		return 0;
+	}
+	function getDayRecords(date) { return records.filter(r => r.date === date); }
+	function getDayHours(date) { return getDayRecords(date).reduce((s,r)=>s + (r.hours || 0),0); }
+	function getDayIncome(date) { return getDayRecords(date).reduce((s,r)=>s+calcIncome(r),0); }
+	function hasRemark(dateStr) {
+		let rec = getDayRecords(dateStr)[0];
+		return rec && rec.remark && rec.remark.trim().length > 0;
+	}
+	function getRemarkContent(dateStr) {
+		let rec = getDayRecords(dateStr)[0];
+		return rec && rec.remark ? rec.remark : "暂无备注";
+	}
+	function showRemarkModal(dateStr) {
+		let content = getRemarkContent(dateStr);
+		document.getElementById("remarkModalBody").innerText = content;
+		document.getElementById("remarkModal").style.display = "flex";
+	}
+	function closeRemarkModal() {
+		document.getElementById("remarkModal").style.display = "none";
+	}
+	
+	function getCurrentMonthStats() {
+		let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+		let vacationHours = 0, personalHours = 0, sickHours = 0, paidHours = 0, restHours = 0;
+		let personalDays = 0, sickDays = 0;
+		let totalWorkHours = 0;
+		
+		for (let r of records) {
+			let [y,m] = r.date.split('-');
+			if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth) {
+				if (r.type === "workday") {
+					normalH += r.hours || 0;
+					totalWorkHours += r.hours || 0;
+				} else if (r.type === "weekend") {
+					weekendH += r.hours || 0;
+					totalWorkHours += r.hours || 0;
+				} else if (r.type === "holiday") {
+					holidayH += r.hours || 0;
+					totalWorkHours += r.hours || 0;
+				} else if (r.type === "salary") {
+					salaryIncome += r.amount || 0;
+				}
+				
+				if (r.shift === "休息") {
+					let hoursForDisplay = getLeaveHoursForDisplay(r);
+					if (r.type === "vacation") vacationHours += hoursForDisplay;
+					else if (r.type === "personal") { personalHours += hoursForDisplay; personalDays++; }
+					else if (r.type === "sick") { sickHours += hoursForDisplay; sickDays++; }
+					else if (r.type === "paid") paidHours += hoursForDisplay;
+					else restHours += hoursForDisplay;
+				} else {
+					if (r.type !== "salary") attendanceSet.add(r.date);
+				}
+			}
+		}
+		
+		let overtimeTotal = normalH + weekendH + holidayH;
+		let actualAttendanceDays = attendanceSet.size;
+		let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+		let standardHours = monthWorkdayCount * 8;
+		
+		let overtimeHoursForComprehensive = 0;
+		let overtimePayForComprehensive = 0;
+		let hourlyWage = 0;
+		
+		if (currentSalaryMethodName === "综合工时") {
+			if (monthWorkdayCount > 0) {
+				hourlyWage = baseSalary / monthWorkdayCount / 8;
+			} else {
+				hourlyWage = baseSalary / 21.75 / 8;
+			}
+			if (totalWorkHours > standardHours) {
+				overtimeHoursForComprehensive = totalWorkHours - standardHours;
+				overtimePayForComprehensive = overtimeHoursForComprehensive * hourlyWage * 1.5;
+			}
+			let holidayOvertime = holidayH * hourlyWage * 3;
+			overtimePayForComprehensive += holidayOvertime;
+		} else {
+			if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
+				hourlyWage = (baseSalary / monthWorkdayCount / 8);
+			} else {
+				hourlyWage = baseSalary / 21.75 / 8;
+			}
+		}
+		
+		let overtimePay = 0;
+		if (currentSalaryMethodName === "综合工时") {
+			overtimePay = overtimePayForComprehensive;
+		} else {
+			overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
+		}
+		
+		let allowancesTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
+		let deductionsTotal = settingsDeductions.reduce((s, d) => s + (d.amount || 0), 0);
+		
+		let monthlyBasePay = 0;
+		if (salaryDisplayMode === 'full') {
+			monthlyBasePay = baseSalary;
+		} else {
+			if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
+				monthlyBasePay = (baseSalary / monthWorkdayCount) * actualAttendanceDays;
+			} else if (actualAttendanceDays > 0) {
+				monthlyBasePay = baseSalary;
+			} else {
+				monthlyBasePay = 0;
+			}
+		}
+		
+		let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
+		
+		let overtimeTotalForDisplay = (currentSalaryMethodName === "综合工时") ? overtimeHoursForComprehensive : overtimeTotal;
+		
+		return {
+			normalH, weekendH, holidayH, salaryIncome, overtimePay, totalSalary,
+			attendanceDays: actualAttendanceDays, workdayHours: actualAttendanceDays * 8, 
+			overtimeTotal: overtimeTotalForDisplay,
+			vacationHours, personalHours, sickHours, paidHours, restHours, absentDays: personalDays + sickDays,
+			isFullAttendance: !hasWorkdayPersonalOrSickLeave()
+		};
+	}
+	
+	function updateStats() {
+		let stats = getCurrentMonthStats();
+		document.getElementById("totalOvertime").innerText = stats.overtimeTotal.toFixed(1);
+		document.getElementById("monthIncome").innerText = formatMoney(stats.totalSalary);
+		document.getElementById("monthLabel").innerText = (currentMonth+1) + "月工资";
+		document.getElementById("attendanceDays").innerText = stats.attendanceDays;
+		updateIncomeCardDisplay();
+		renderSettingsAllowancesDeductions();
+	}
+	
+	function getCurrentMonthDays() { 
+		let daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate(); 
+		let firstDay = new Date(currentYear, currentMonth, 1); 
+		let startWeekday = firstDay.getDay(); 
+		let startOffset = startWeekday === 0 ? 6 : startWeekday - 1; 
+		let days = []; 
+		for (let i = 0; i < startOffset; i++) days.push(null); 
+		for (let i = 1; i <= daysInMonth; i++) days.push({ day: i, dateStr: `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(i).padStart(2,'0')}` }); 
+		return days; 
+	}
+	
+	function getShiftTag(rec) { 
+		if (!rec) return null; 
+		if (rec.shift === "休息") { 
+			let hours = rec.hours || 0; 
+			let typeMap = { "vacation": "休", "personal": "事", "sick": "病", "paid": "薪" }; 
+			let prefix = typeMap[rec.type] || "休"; 
+			let classMap = { "vacation": "vacation", "personal": "personal", "sick": "sick", "paid": "paid" }; 
+			let tagClass = classMap[rec.type] || "rest"; 
+			if (hours > 0) return { text: `${prefix} ${hours.toFixed(1)}h`, class: tagClass }; 
+			let nameMap = { "vacation": "休假", "personal": "事假", "sick": "病假", "paid": "薪假" }; 
+			return { text: nameMap[rec.type] || "休息", class: tagClass }; 
+		} 
+		if (rec.type === "salary") return { text: `¥${Math.round(rec.amount || 0)}`, class: "salary" }; 
+		let shiftText = rec.shift === "白班" ? "白" : "夜"; 
+		return { text: `${shiftText} ${rec.hours.toFixed(1)}h`, class: rec.shift === "白班" ? "day" : "night" }; 
+	}
+	
+	function startCellRotate(dayDiv, list) { 
+		if (cellRotateTimers.has(dayDiv)) clearInterval(cellRotateTimers.get(dayDiv)); 
+		if (!list || list.length <= 1) return; 
+		let idx = cellRotateIndex.get(dayDiv) || 0; 
+		const subSpan = dayDiv.querySelector('.day-sub'); 
+		const update = () => { idx = (idx + 1) % list.length; cellRotateIndex.set(dayDiv, idx); if (subSpan) subSpan.innerHTML = list[idx]; }; 
+		let timer = setInterval(update, 2000); 
+		cellRotateTimers.set(dayDiv, timer); 
+	}
+	
+	function stopAllRotate() { for (let [div, timer] of cellRotateTimers) clearInterval(timer); cellRotateTimers.clear(); cellRotateIndex.clear(); }
+	
+	function isWorkday(dateStr) {
+		let [year, month, day] = dateStr.split('-').map(Number);
+		let tiaoxiu = getTiaoxiu(year, dateStr);
+		let isHoliday = isStatutoryHoliday(year, month, day);
+		let date = new Date(year, month - 1, day);
+		let dayOfWeek = date.getDay();
+		if (isHoliday) return false;
+		if (tiaoxiu.isFangjia) return false;
+		if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+		if (tiaoxiu.isJiaban) return true;
+		return true;
+	}
+	
+	function shouldTriggerSwap() {
+		if (!isMultiSelectMode || selectedDatesSet.size !== 2) return false;
+		let dates = Array.from(selectedDatesSet);
+		let isWorkday1 = isWorkday(dates[0]);
+		let isWorkday2 = isWorkday(dates[1]);
+		return (isWorkday1 && !isWorkday2) || (!isWorkday1 && isWorkday2);
+	}
+	
+	function isDateHasShiftBadge(dateStr) {
+		let rec = getDayRecords(dateStr)[0];
+		return rec && rec.swapped === true;
+	}
+	
+	function formatDateDisplay(dateStr) {
+		let [year, month, day] = dateStr.split('-');
+		return `${month}月${day}日`;
+	}
+	
+	function showUnifiedConfirm(message, onConfirm) {
+		let modal = document.createElement("div");
+		modal.className = "unified-modal";
+		modal.innerHTML = `<div class="unified-card"><div class="unified-header">提示</div><div class="unified-body">${message}</div><div class="unified-buttons"><button class="unified-cancel" id="unifiedCancelBtn">取消</button><button class="unified-confirm" id="unifiedConfirmBtn">确认</button></div></div>`;
+		document.body.appendChild(modal);
+		modal.style.display = "flex";
+		document.getElementById("unifiedConfirmBtn").onclick = () => { modal.remove(); onConfirm(); };
+		document.getElementById("unifiedCancelBtn").onclick = () => { modal.remove(); };
+	}
+	
+	function clearAllData() {
+		showUnifiedConfirm("⚠️ 确定要清除所有数据吗？\n\n此操作将删除：\n• 所有加班记录\n• 所有补贴和扣款设置\n• 所有月份的薪资设置\n\n此操作不可恢复！", () => {
+			records = [];
+			monthlyAllowances = {};
+			monthlyDeductions = {};
+			monthlyBaseSalary = {};
+			monthlySalaryMethodName = {};
+			settingsAllowances = [];
+			settingsDeductions = [];
+			baseSalary = 0;
+			currentSalaryMethodName = "暂未设置计薪方式";
+			globalSalaryConfigured = false;
+			lockedShift = null;
+			isMultiSelectMode = false;
+			selectedDatesSet.clear();
+			showYearStats = false;
+			salaryDisplayMode = 'prorated';
+			document.getElementById("modeBadge").innerHTML = "按出勤算";
+			
+			saveAllMonthlyData();
+			localStorage.setItem("overtime_final", JSON.stringify({ records: [], payType: "formal", baseSalary: 0 }));
+			localStorage.removeItem("lockedShift");
+			
+			loadDataForCurrentMonth();
+			renderCalendar();
+			renderBottom();
+			updateStats();
+			showToast("已清除所有数据");
+			checkFirstUse();
+		});
+	}
+	
+	function showSwapStep1() {
+		let dates = Array.from(selectedDatesSet);
+		let workdayDate = isWorkday(dates[0]) ? dates[0] : dates[1];
+		let weekendDate = isWorkday(dates[0]) ? dates[1] : dates[0];
+		swapDates = [workdayDate, weekendDate];
+		let workdayRec = getDayRecords(workdayDate)[0];
+		let defaultHours = workdayRec ? workdayRec.hours : 0;
+		swapHours[0] = defaultHours;
+		
+		let modal = document.createElement("div");
+		modal.className = "unified-modal time-set-modal";
+		modal.innerHTML = `
+			<div class="unified-card">
+				<div class="unified-header">📅 调班设置 (1/2)</div>
+				<div class="unified-body">
+					<div class="time-set-item">
+						<div class="label">工作日 → 周末</div>
+						<div class="date">${formatDateDisplay(workdayDate)}</div>
+						<div class="time-control-group">
+							<div class="btn" id="swapHourMinus">−</div>
+							<input type="text" id="swapHourInput" class="time-value-input" value="${defaultHours.toFixed(1)}" inputmode="decimal" pattern="[0-9]*\.?[0-9]*">
+							<div class="btn" id="swapHourPlus">+</div>
+						</div>
+						<div class="time-set-hint">调班后按周末加班计算（2倍工资）</div>
+					</div>
+				</div>
+				<div class="unified-buttons">
+					<button class="unified-cancel" id="swapCancelBtn">取消</button>
+					<button class="unified-confirm" id="swapNextBtn">下一步</button>
+				</div>
+			</div>
+		`;
+		document.body.appendChild(modal);
+		modal.style.display = "flex";
+		
+		let hourInput = document.getElementById("swapHourInput");
+		hourInput.oninput = function() {
+			let val = parseFloat(this.value);
+			if (!isNaN(val)) {
+				swapHours[0] = val;
+			}
+		};
+		hourInput.onblur = function() {
+			let val = parseFloat(this.value);
+			if (isNaN(val)) val = 0;
+			val = Math.min(24, Math.max(0, val));
+			this.value = val.toFixed(1);
+			swapHours[0] = val;
+		};
+		document.getElementById("swapHourMinus").onclick = () => {
+			let val = swapHours[0];
+			val = Math.max(0, val - 0.5);
+			hourInput.value = val.toFixed(1);
+			swapHours[0] = val;
+		};
+		document.getElementById("swapHourPlus").onclick = () => {
+			let val = swapHours[0];
+			val = Math.min(24, val + 0.5);
+			hourInput.value = val.toFixed(1);
+			swapHours[0] = val;
+		};
+		document.getElementById("swapNextBtn").onclick = () => { 
+			hourInput.blur();
+			modal.remove(); 
+			showSwapStep2(); 
+		};
+		document.getElementById("swapCancelBtn").onclick = () => modal.remove();
+	}
+	
+	function showSwapStep2() {
+		let weekendDate = swapDates[1];
+		let weekendRec = getDayRecords(weekendDate)[0];
+		let defaultHours = weekendRec ? weekendRec.hours : 0;
+		swapHours[1] = defaultHours;
+		
+		let modal = document.createElement("div");
+		modal.className = "unified-modal time-set-modal";
+		modal.innerHTML = `
+			<div class="unified-card">
+				<div class="unified-header">📅 调班设置 (2/2)</div>
+				<div class="unified-body">
+					<div class="time-set-item">
+						<div class="label">周末 → 工作日</div>
+						<div class="date">${formatDateDisplay(weekendDate)}</div>
+						<div class="time-control-group">
+							<div class="btn" id="swapHourMinus">−</div>
+							<input type="text" id="swapHourInput" class="time-value-input" value="${defaultHours.toFixed(1)}" inputmode="decimal" pattern="[0-9]*\.?[0-9]*">
+							<div class="btn" id="swapHourPlus">+</div>
+						</div>
+						<div class="time-set-hint">调班后按工作日加班计算（1.5倍工资）</div>
+					</div>
+				</div>
+				<div class="unified-buttons">
+					<button class="unified-cancel" id="swapCancelBtn">取消</button>
+					<button class="unified-confirm" id="swapConfirmBtn">确认调班</button>
+				</div>
+			</div>
+		`;
+		document.body.appendChild(modal);
+		modal.style.display = "flex";
+		
+		let hourInput = document.getElementById("swapHourInput");
+		hourInput.oninput = function() {
+			let val = parseFloat(this.value);
+			if (!isNaN(val)) {
+				swapHours[1] = val;
+			}
+		};
+		hourInput.onblur = function() {
+			let val = parseFloat(this.value);
+			if (isNaN(val)) val = 0;
+			val = Math.min(24, Math.max(0, val));
+			this.value = val.toFixed(1);
+			swapHours[1] = val;
+		};
+		document.getElementById("swapHourMinus").onclick = () => {
+			let val = swapHours[1];
+			val = Math.max(0, val - 0.5);
+			hourInput.value = val.toFixed(1);
+			swapHours[1] = val;
+		};
+		document.getElementById("swapHourPlus").onclick = () => {
+			let val = swapHours[1];
+			val = Math.min(24, val + 0.5);
+			hourInput.value = val.toFixed(1);
+			swapHours[1] = val;
+		};
+		document.getElementById("swapConfirmBtn").onclick = () => { 
+			hourInput.blur();
+			modal.remove(); 
+			confirmSwapShift(); 
+		};
+		document.getElementById("swapCancelBtn").onclick = () => modal.remove();
+	}
+	
+	function confirmSwapShift() {
+		let workdayDate = swapDates[0];
+		let weekendDate = swapDates[1];
+		let workdayHours = swapHours[0];
+		let weekendHours = swapHours[1];
+		
+		let workdayRec = getDayRecords(workdayDate)[0];
+		let weekendRec = getDayRecords(weekendDate)[0];
+		
+		let targetShift = lockedShift ? lockedShift : "白班";
+		
+		let newWorkdayRec = {
+			id: workdayRec ? workdayRec.id : Date.now() + Math.random(),
+			date: workdayDate,
+			hours: workdayHours,
+			amount: 0,
+			type: 'weekend',
+			shift: targetShift,
+			remark: workdayRec ? workdayRec.remark : "",
+			swapped: true
+		};
+		
+		let newWeekendRec = {
+			id: weekendRec ? weekendRec.id : Date.now() + Math.random(),
+			date: weekendDate,
+			hours: weekendHours,
+			amount: 0,
+			type: 'workday',
+			shift: targetShift,
+			remark: weekendRec ? weekendRec.remark : "",
+			swapped: true
+		};
+		
+		let idx1 = records.findIndex(r => r.date === workdayDate);
+		let idx2 = records.findIndex(r => r.date === weekendDate);
+		if (idx1 !== -1) records.splice(idx1, 1);
+		if (idx2 !== -1) records.splice(idx2, 1);
+		
+		records.push(newWorkdayRec);
+		records.push(newWeekendRec);
+		
+		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
+		renderCalendar();
+		renderBottom();
+		updateStats();
+		recalcDayBasedAllowances();
+		updateIncomeCardDisplay();
+		exitMultiSelectMode();
+		showToast("调班成功");
+	}
+	
+	function enterMultiSelectMode(startDateStr) {
+		isMultiSelectMode = true;
+		selectedDatesSet.clear();
+		selectedDatesSet.add(startDateStr);
+		selectedDate = startDateStr;
+		document.querySelector(".bottom-nav").classList.add("multi-select-mode");
+		renderCalendar();
+		renderBottom();
+		if (navigator.vibrate) navigator.vibrate(50);
+		showToast("📌 已进入多选模式，可点击多个日期");
+	}
+	
+	function exitMultiSelectMode() {
+		isMultiSelectMode = false;
+		selectedDatesSet.clear();
+		document.querySelector(".bottom-nav").classList.remove("multi-select-mode");
+		renderCalendar();
+		if (document.getElementById("bottomDrawer").classList.contains("show")) {
+			closeDrawer();
+		}
+	}
+	
+	function toggleDateSelection(dateStr) {
+		if (!isMultiSelectMode) return;
+		if (selectedDatesSet.has(dateStr)) {
+			selectedDatesSet.delete(dateStr);
+		} else {
+			selectedDatesSet.add(dateStr);
+		}
+		selectedDate = dateStr;
+		renderCalendar();
+		renderBottom();
+		if (shouldTriggerSwap()) {
+			showUnifiedConfirm("检测到您选择了1个工作日和1个周末日期，是否进行调班？", () => { showSwapStep1(); });
+		}
+	}
+	
+	function batchSaveRecords(rec) {
+		let count = selectedDatesSet.size;
+		for (let dateStr of selectedDatesSet) {
+			let existingIdx = records.findIndex(r => r.date === dateStr);
+			let newRec = { ...rec, date: dateStr, id: Date.now() + "-" + Math.random() + "-" + dateStr };
+			if (existingIdx >= 0) records[existingIdx] = newRec;
+			else records.push(newRec);
+		}
+		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
+		renderCalendar();
+		renderBottom();
+		updateStats();
+		recalcDayBasedAllowances();
+		updateIncomeCardDisplay();
+		exitMultiSelectMode();
+		showToast(`已批量保存 ${count} 天记录`);
+	}
+	
+	function batchDeleteRecords() {
+		let count = selectedDatesSet.size;
+		for (let dateStr of selectedDatesSet) {
+			let idx = records.findIndex(r => r.date === dateStr);
+			if (idx !== -1) records.splice(idx, 1);
+		}
+		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
+		renderCalendar();
+		renderBottom();
+		updateStats();
+		recalcDayBasedAllowances();
+		updateIncomeCardDisplay();
+		exitMultiSelectMode();
+		showToast(`已批量删除 ${count} 天记录`);
+	}
+	
+	function bindTimeControlEvents() {
+		let timeInput = document.getElementById("timeInput");
+		let minusBtn = document.getElementById("timeMinusBtn");
+		let plusBtn = document.getElementById("timePlusBtn");
+		
+		if (!timeInput) return;
+		
+		let newTimeInput = timeInput.cloneNode(true);
+		timeInput.parentNode.replaceChild(newTimeInput, timeInput);
+		timeInput = newTimeInput;
+		
+		timeInput.oninput = function() {
+			let val = parseFloat(this.value);
+			if (!isNaN(val)) {
+				currentHours = val;
+			}
+		};
+		timeInput.onblur = function() {
+			let val = parseFloat(this.value);
+			if (isNaN(val)) val = 0;
+			val = Math.min(24, Math.max(0, val));
+			currentHours = val;
+			this.value = val.toFixed(1);
+			renderTimeGrid();
+		};
+		
+		if (minusBtn) {
+			let newMinus = minusBtn.cloneNode(true);
+			minusBtn.parentNode.replaceChild(newMinus, minusBtn);
+			newMinus.onclick = () => {
+				currentHours = Math.max(0, currentHours - 0.5);
+				let input = document.getElementById("timeInput");
+				if (input) input.value = currentHours.toFixed(1);
+				renderTimeGrid();
+			};
+		}
+		
+		if (plusBtn) {
+			let newPlus = plusBtn.cloneNode(true);
+			plusBtn.parentNode.replaceChild(newPlus, plusBtn);
+			newPlus.onclick = () => {
+				currentHours = Math.min(24, currentHours + 0.5);
+				let input = document.getElementById("timeInput");
+				if (input) input.value = currentHours.toFixed(1);
+				renderTimeGrid();
+			};
+		}
+	}
+	
+	function openDrawerForBatch() {
+		if (selectedDatesSet.size === 0) { showToast("请先选择日期"); return; }
+		document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
+		isEditMode = false;
+		currentShift = lockedShift || "白班";
+		currentType = "workday";
+		currentHours = 0;
+		currentAmount = 0;
+		currentRemark = "";
+		document.getElementById("remarkInput").value = "";
+		let timeInput = document.getElementById("timeInput");
+		if (timeInput) timeInput.value = "0.0";
+		updateTypeNavByShift();
+		document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active"));
+		document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => {
+			if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active");
+		});
+		updateLockUI();
+		renderTimeGrid();
+		updateTimeDisplay();
+		bindTimeControlEvents();
+		document.getElementById("bottomDrawer").classList.add("show");
+		document.getElementById("drawerMask").classList.add("show");
+		document.getElementById("drawerMask").style.display = "block";
+	}
+	
+	function renderCalendar() { 
+		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
+		if (!hasSalaryConfig) {
+			document.getElementById("calendarGrid").innerHTML = '<div class="calendar-placeholder">请先在设置中设置薪资计算方式</div>';
+			document.getElementById("bottomDetail").innerHTML = '';
+			return;
+		}
+		let days = getCurrentMonthDays(); 
+		let grid = document.getElementById("calendarGrid"); 
+		stopAllRotate(); 
+		grid.innerHTML = ""; 
+		const today = new Date(); 
+		const todayYear = today.getFullYear(), todayMonth = today.getMonth(), todayDateNum = today.getDate(); 
+		for (let d of days) { 
+			let dayDiv = document.createElement("div"); 
+			dayDiv.className = "cal-day"; 
+			if (d === null) { 
+				dayDiv.classList.add("empty"); 
+				dayDiv.innerHTML = ""; 
+			} else { 
+				let rec = getDayRecords(d.dateStr)[0]; 
+				let lunarInfo = getLunarInfo(currentYear, parseInt(d.dateStr.split('-')[1]), d.day); 
+				let festivalList = [];
+				for (let f of lunarInfo.festivals) {
+					if (f && f.length <= 4) festivalList.push(f);
+				}
+				if (lunarInfo.jieqi && lunarInfo.jieqi.length <= 4 && !festivalList.includes(lunarInfo.jieqi)) festivalList.push(lunarInfo.jieqi);
+				let lunarDay = lunarInfo.lunarStr.split('月')[1];
+				if (festivalList.length === 0 && lunarDay && lunarDay.length <= 4) festivalList.push(lunarDay);
+				let tiaoxiu = getTiaoxiu(currentYear, d.dateStr); 
+				if (rec) dayDiv.classList.add("has-record"); 
+				if (selectedDate === d.dateStr && !isMultiSelectMode) dayDiv.classList.add("selected"); 
+				if (isMultiSelectMode && selectedDatesSet.has(d.dateStr)) dayDiv.classList.add("multi-selected");
+				const isToday = (currentYear === todayYear && currentMonth === todayMonth && d.day === todayDateNum); 
+				let badgeHtml = ''; 
+				if (lunarInfo.isStatutory || tiaoxiu.isFangjia) badgeHtml = '<div class="holiday-badge">休</div>'; 
+				else if (tiaoxiu.isJiaban) badgeHtml = '<div class="workday-badge">班</div>'; 
+				if (isDateHasShiftBadge(d.dateStr)) badgeHtml += '<div class="shift-badge">调</div>';
+				let displayHtml = ''; 
+				if (rec) { 
+					let tag = getShiftTag(rec); 
+					displayHtml = `<span class="shift-tag ${tag.class}">${tag.text}</span>`; 
+				} else if (festivalList.length > 0) { 
+					displayHtml = festivalList[0]; 
+				} 
+				// 备注圆点 - 绿色，右上角稍微往内缩
+				let remarkDot = '';
+				if (rec && rec.remark && rec.remark.trim().length > 0) {
+					remarkDot = '<div class="remark-dot"></div>';
+				}
+				dayDiv.innerHTML = `<div class="day-number ${isToday ? 'today-number' : ''}">${d.day}</div><div class="day-sub">${displayHtml}</div>${badgeHtml}${remarkDot}`; 
+				if (!rec && festivalList.length > 1) { 
+					cellRotateIndex.set(dayDiv, 0); 
+					startCellRotate(dayDiv, festivalList); 
+				} 
+				dayDiv.onclick = (function(dateStr){ 
+					return function(){ 
+						if (isMultiSelectMode) toggleDateSelection(dateStr);
+						else { document.querySelectorAll(".cal-day").forEach(c=>c.classList.remove("selected")); dayDiv.classList.add("selected"); selectedDate = dateStr; renderBottom(); updateTodayButton(); }
+					}; 
+				})(d.dateStr);
+				dayDiv.addEventListener("dblclick", (function(dateStr){ 
+					return function(e) { 
+						e.stopPropagation();
+						if (hasRemark(dateStr)) {
+							showRemarkModal(dateStr);
+						} else {
+							showToast("该日期没有备注");
+						}
+					};
+				})(d.dateStr));
+				dayDiv.addEventListener("touchstart", (function(dateStr){ 
+					return function(e) { if (isMultiSelectMode) return; longPressTimer = setTimeout(() => { enterMultiSelectMode(dateStr); }, 500); };
+				})(d.dateStr));
+				dayDiv.addEventListener("touchend", function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } });
+				dayDiv.addEventListener("touchmove", function() { if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; } });
+			} 
+			grid.appendChild(dayDiv); 
+		} 
+		let monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']; 
+		document.getElementById("currentMonthLabel").innerText = `${currentYear}年 ${monthNames[currentMonth]}`; 
+		updateStats(); 
+		updateTodayButton(); 
+		saveBackup();
+	}
+	
+	function renderBottom() { 
+		if (!selectedDate) return; 
+		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
+		if (!hasSalaryConfig) { document.getElementById("bottomDetail").innerHTML = ''; return; }
+		let date = new Date(selectedDate), month = date.getMonth()+1, day = date.getDate(); 
+		let lunarInfo = getLunarInfo(currentYear, month, day); 
+		let displayText = getBottomDisplayText(lunarInfo.festivals, lunarInfo.lunarStr, lunarInfo.weekday); 
+		let rec = getDayRecords(selectedDate)[0], totalHours = getDayHours(selectedDate), totalIncome = getDayIncome(selectedDate); 
+		let bottom = document.getElementById("bottomDetail"); 
+		if (!rec) bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span class="no-record-text">暂无记录</span></div><button class="action-btn" id="addRecordBtn"><span class="plus-icon">+</span>记加班</button></div>`;
+		else if (rec.type === "salary") bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>日结</span><span class="hours-value">${formatMoney(rec.amount || 0)}元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`;
+		else if (rec.shift === "休息") { 
+			let typeName = rec.type === "vacation" ? "休假" : (rec.type === "personal" ? "事假" : (rec.type === "sick" ? "病假" : (rec.type === "paid" ? "薪假" : "休息"))); 
+			let displayHours = getLeaveHoursForDisplay(rec);
+			bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>${typeName}</span><span class="hours-value">${displayHours.toFixed(1)}小时</span><span class="amount-value">0元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`; 
+		} else { 
+			let multiplier = getMultiplier(rec.type), shiftName = rec.shift || "白班"; 
+			bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>${shiftName}｜${multiplier}倍</span><span class="hours-value">${totalHours.toFixed(1)}小时</span><span class="amount-value">${formatMoney(totalIncome)}元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`; 
+		} 
+		document.getElementById("addRecordBtn")?.addEventListener("click", function() { if (isMultiSelectMode) openDrawerForBatch(); else openDrawer(); }); 
+		document.getElementById("editRecordBtn")?.addEventListener("click", function() { if (isMultiSelectMode) openDrawerForBatch(); else openDrawer(); }); 
+	}
+	
+	function updateTodayButton(){ 
+		if (currentPage === "settings") { document.getElementById("todayFab").classList.add("hide"); return; }
+		let today = new Date(), todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`; 
+		const btn = document.getElementById("todayFab"); 
+		if (selectedDate !== todayStr) btn.classList.remove("hide");
+		else btn.classList.add("hide");
+	}
+	
+	function getDefaultTypeByDate(dateStr, tiaoxiu) { 
+		let [year, month, day] = dateStr.split('-').map(Number); 
+		let isHoliday = isStatutoryHoliday(year, month, day); 
+		if (isHoliday) return "holiday"; 
+		if (tiaoxiu.isFangjia) return "weekend"; 
+		if (tiaoxiu.isJiaban) return "workday"; 
+		let date = new Date(dateStr); 
+		let dayOfWeek = date.getDay(); 
+		if (dayOfWeek === 0 || dayOfWeek === 6) return "weekend"; 
+		return "workday"; 
+	}
+	
+	let currentShift = "白班", currentType = "workday", currentHours = 0, currentAmount = 0, currentRemark = "", isEditMode = false;
+	function generateTimeOptions() { let options = []; for (let i = 0.5; i <= 12; i += 0.5) options.push(i); return options; }
+	function generateAmountOptions() { return [50, 100, 150, 200, 250, 300, 350, 400, 500]; }
+	
+	function updateTypeNavByShift() { 
+		const typeNav = document.getElementById("typeNav"); 
+		const typeFormLabel = document.getElementById("typeFormLabel"); 
+		if (currentShift === "休息") { 
+			typeFormLabel.innerText = "请假类型"; 
+			typeNav.innerHTML = `<div class="type-nav-item" data-type="vacation">休假</div><div class="type-nav-item" data-type="personal">事假</div><div class="type-nav-item" data-type="sick">病假</div><div class="type-nav-item" data-type="paid">薪假</div>`; 
+			if (!["vacation","personal","sick","paid"].includes(currentType)) currentType = "vacation"; 
+			document.getElementById("timeLabel").innerText = "请假时长"; 
+		} else { 
+			typeFormLabel.innerText = "加班类型"; 
+			typeNav.innerHTML = `<div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div>`; 
+			if (!["workday","weekend","holiday","salary"].includes(currentType)) currentType = "workday"; 
+			document.getElementById("timeLabel").innerText = "加班时长"; 
+		} 
+		document.querySelectorAll("#typeNav .type-nav-item").forEach(item => { 
+			const typeVal = item.getAttribute("data-type"); 
+			if (typeVal === currentType) item.classList.add("active"); 
+			else item.classList.remove("active"); 
+			item.onclick = () => { 
+				document.querySelectorAll("#typeNav .type-nav-item").forEach(i => i.classList.remove("active")); 
+				item.classList.add("active"); 
+				currentType = typeVal; 
+				if (currentType === "salary") currentHours = 0; 
+				renderTimeGrid(); 
+				updateTimeDisplay(); 
+			}; 
+		}); 
+	}
+	
+	function updateTimeDisplay() { 
+		let timeInput = document.getElementById("timeInput");
+		if (currentType === "salary") { 
+			if (timeInput) timeInput.style.display = "none"; 
+			document.getElementById("timeMinusBtn").style.display = "none"; 
+			document.getElementById("timePlusBtn").style.display = "none"; 
+			document.getElementById("amountInputWrapper").style.display = "flex"; 
+			document.getElementById("amountInput").value = currentAmount === 0 ? "" : currentAmount; 
+		} else { 
+			if (timeInput) timeInput.style.display = "block"; 
+			document.getElementById("timeMinusBtn").style.display = "flex"; 
+			document.getElementById("timePlusBtn").style.display = "flex"; 
+			document.getElementById("amountInputWrapper").style.display = "none"; 
+			if (timeInput) timeInput.value = currentHours.toFixed(1); 
+		} 
+		if (currentType === "salary") { 
+			document.querySelectorAll(".amount-option").forEach(btn => { 
+				let val = parseInt(btn.innerText); 
+				if (val === currentAmount) btn.classList.add("selected"); 
+				else btn.classList.remove("selected"); 
+			}); 
+		} else { 
+			document.querySelectorAll(".time-option").forEach(btn => { 
+				let val = parseFloat(btn.innerText); 
+				if (val === currentHours) btn.classList.add("selected"); 
+				else btn.classList.remove("selected"); 
+			}); 
+		} 
+	}
+	
+	function renderTimeGrid() { 
+		const grid = document.getElementById("timeGrid"); 
+		const amountGrid = document.getElementById("amountGrid"); 
+		const options = generateTimeOptions(); 
+		const amountOptions = generateAmountOptions(); 
+		grid.innerHTML = ""; 
+		amountGrid.innerHTML = ""; 
+		if (currentType === "salary") { 
+			grid.style.display = "none"; 
+			amountGrid.style.display = "grid"; 
+			document.getElementById("scrollHint").innerText = "↓ 下滑查看更多金额选项 ↓"; 
+			amountOptions.forEach(amt => { 
+				const btn = document.createElement("div"); 
+				btn.className = "amount-option"; 
+				if (currentAmount === amt) btn.classList.add("selected"); 
+				btn.innerText = amt; 
+				btn.onclick = () => { currentAmount = amt; updateTimeDisplay(); renderTimeGrid(); }; 
+				amountGrid.appendChild(btn); 
+			}); 
+		} else { 
+			grid.style.display = "grid"; 
+			amountGrid.style.display = "none"; 
+			document.getElementById("scrollHint").innerText = "↓ 下滑查看更多时间选项 ↓"; 
+			options.forEach(h => { 
+				const btn = document.createElement("div"); 
+				btn.className = "time-option"; 
+				if (currentHours === h) btn.classList.add("selected"); 
+				btn.innerText = h % 1 === 0 ? h.toFixed(0) : h.toFixed(1); 
+				btn.onclick = () => { currentHours = h; updateTimeDisplay(); renderTimeGrid(); }; 
+				grid.appendChild(btn); 
+			}); 
+		} 
+	}
+	
+	function updateLockUI() { 
+		const shiftSwitch = document.getElementById("shiftSwitch"); 
+		const shiftOptions = document.querySelectorAll("#shiftSwitch .shift-option"); 
+		if (isEditMode) { 
+			shiftSwitch.classList.remove("lock-mode"); 
+			shiftSwitch.classList.add("edit-mode"); 
+			shiftOptions.forEach(opt => opt.classList.remove("locked")); 
+		} else { 
+			shiftSwitch.classList.remove("edit-mode"); 
+			if (lockedShift) { 
+				shiftSwitch.classList.add("lock-mode"); 
+				shiftOptions.forEach(opt => { if (opt.getAttribute("data-shift") === lockedShift) opt.classList.add("locked"); else opt.classList.remove("locked"); }); 
+			} else { 
+				shiftSwitch.classList.remove("lock-mode"); 
+				shiftOptions.forEach(opt => opt.classList.remove("locked")); 
+			} 
+		} 
+	}
+	
+	function handleLockShift(shiftValue) { 
+		if (isEditMode) return; 
+		if (lockedShift === shiftValue) { lockedShift = null; saveLockedShift(); showToast(`✅ 已解锁 ${shiftValue} 班次`); } 
+		else { lockedShift = shiftValue; saveLockedShift(); showToast(`🔒 已锁定 "${lockedShift}"，后续新增记录默认使用此班次`); currentShift = lockedShift; document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active")); document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => { if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active"); }); updateTypeNavByShift(); renderTimeGrid(); updateTimeDisplay(); } 
+		updateLockUI(); 
+	}
+	
+	function bindShiftEvents() { 
+		document.querySelectorAll("#shiftSwitch .shift-option").forEach(opt => { 
+			const shiftVal = opt.getAttribute("data-shift"); 
+			opt.ondblclick = (e) => { e.stopPropagation(); handleLockShift(shiftVal); }; 
+			opt.onclick = (e) => { 
+				e.stopPropagation(); 
+				if (!isEditMode && lockedShift && lockedShift !== shiftVal) { showToast(`班次已锁定为「${lockedShift}」，请双击「${lockedShift}」按钮解锁后再切换`); return; } 
+				document.querySelectorAll("#shiftSwitch .shift-option").forEach(b=>b.classList.remove("active")); 
+				opt.classList.add("active"); 
+				currentShift = shiftVal; 
+				updateTypeNavByShift(); 
+				if (currentShift !== "休息") { let tiaoxiu = getTiaoxiu(currentYear, selectedDate); currentType = getDefaultTypeByDate(selectedDate, tiaoxiu); document.querySelectorAll("#typeNav .type-nav-item").forEach(item => { if (item.getAttribute("data-type") === currentType) item.classList.add("active"); else item.classList.remove("active"); }); }
+				renderTimeGrid(); updateTimeDisplay(); 
+			}; 
+		}); 
+	}
+	
+	function saveLockedShift() { if (lockedShift) localStorage.setItem("lockedShift", lockedShift); else localStorage.removeItem("lockedShift"); }
+	
+	function openDrawer() { 
+		if (!selectedDate) return; 
+		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
+		if (!hasSalaryConfig) { showToast("请先在设置中设置薪资计算方式"); return; }
+		let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
+		document.getElementById("drawerDateTitle").innerText = `${year}年${month}月${day}日`; 
+		let existing = getDayRecords(selectedDate)[0]; 
+		let tiaoxiu = getTiaoxiu(currentYear, selectedDate); 
+		if (existing) { 
+			isEditMode = true; 
+			currentShift = existing.shift || "白班"; 
+			currentType = existing.type || "workday"; 
+			currentHours = existing.hours || 0; 
+			currentAmount = existing.amount || 0; 
+			currentRemark = existing.remark || ""; 
+		} else { 
+			isEditMode = false; 
+			if (lockedShift) currentShift = lockedShift; else currentShift = "白班"; 
+			currentType = getDefaultTypeByDate(selectedDate, tiaoxiu); 
+			currentHours = 0; currentAmount = 0; currentRemark = ""; 
+		} 
+		document.getElementById("remarkInput").value = currentRemark; 
+		let timeInput = document.getElementById("timeInput");
+		if (timeInput) timeInput.value = currentHours.toFixed(1);
+		updateTypeNavByShift(); 
+		document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active")); 
+		document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => { if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active"); }); 
+		updateLockUI(); 
+		const amountInput = document.getElementById("amountInput"); 
+		amountInput.oninput = () => { let val = parseFloat(amountInput.value); if (isNaN(val)) val = 0; currentAmount = val; renderTimeGrid(); }; 
+		
+		if (timeInput) {
+			timeInput.oninput = function() {
+				let val = parseFloat(this.value);
+				if (!isNaN(val)) {
+					currentHours = val;
+				}
+			};
+			timeInput.onblur = function() {
+				let val = parseFloat(this.value);
+				if (isNaN(val)) val = 0;
+				val = Math.min(24, Math.max(0, val));
+				currentHours = val;
+				this.value = val.toFixed(1);
+				renderTimeGrid();
+			};
+		}
+		
+		let minusBtn = document.getElementById("timeMinusBtn");
+		let plusBtn = document.getElementById("timePlusBtn");
+		if (minusBtn) {
+			minusBtn.onclick = () => {
+				currentHours = Math.max(0, currentHours - 0.5);
+				if (timeInput) timeInput.value = currentHours.toFixed(1);
+				renderTimeGrid();
+			};
+		}
+		if (plusBtn) {
+			plusBtn.onclick = () => {
+				currentHours = Math.min(24, currentHours + 0.5);
+				if (timeInput) timeInput.value = currentHours.toFixed(1);
+				renderTimeGrid();
+			};
+		}
+		
+		renderTimeGrid(); 
+		updateTimeDisplay(); 
+		bindTimeControlEvents();
+		document.getElementById("bottomDrawer").classList.add("show"); 
+		document.getElementById("drawerMask").classList.add("show"); 
+		document.getElementById("drawerMask").style.display = "block"; 
+	}
+	
+	function closeDrawer() { 
+		document.getElementById("bottomDrawer").classList.remove("show"); 
+		document.getElementById("drawerMask").classList.remove("show"); 
+		document.getElementById("drawerMask").style.display = "none"; 
+		isEditMode = false; 
+		updateLockUI(); 
+	}
+	
+	function deleteCurrentRecord() { 
+		if (isMultiSelectMode && selectedDatesSet.size > 0) { batchDeleteRecords(); return; }
+		if (!selectedDate) return; 
+		let idx = records.findIndex(r => r.date === selectedDate); 
+		if (idx !== -1) { 
+			records.splice(idx, 1); 
+			localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); 
+			renderCalendar(); renderBottom(); updateStats(); closeDrawer(); showToast("已删除"); 
+		} else { showToast("暂无记录可删除"); closeDrawer(); } 
+		renderSettingsAllowancesDeductions(); updateIncomeCardDisplay();
+	}
+	
+	function saveFromDrawer() { 
+		if (isMultiSelectMode && selectedDatesSet.size > 0) {
+			let remark = document.getElementById("remarkInput").value;
+			let newRecTemplate = currentType === "salary" ? { hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { hours: currentHours, amount: 0, type: currentType, shift: currentShift, remark: remark };
+			batchSaveRecords(newRecTemplate);
+			closeDrawer();
+			return;
+		}
+		if (!selectedDate) return; 
+		let remark = document.getElementById("remarkInput").value; 
+		let idx = records.findIndex(r => r.date === selectedDate); 
+		let existingRec = idx >= 0 ? records[idx] : null;
+		let newRec = currentType === "salary" ? { id: Date.now() + "-" + Math.random(), date: selectedDate, hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { id: Date.now() + "-" + Math.random(), date: selectedDate, hours: currentHours, amount: 0, type: currentType, shift: currentShift, remark: remark };
+		if (existingRec && existingRec.swapped) newRec.swapped = existingRec.swapped;
+		if (idx >= 0) records[idx] = newRec; else records.push(newRec); 
+		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); 
+		renderCalendar(); renderBottom(); updateStats(); closeDrawer(); showToast("已记录"); 
+		renderSettingsAllowancesDeductions(); updateIncomeCardDisplay(); recalcDayBasedAllowances(); updateIncomeCardDisplay();
+	}
+	
+	function goToToday(){ let today=new Date(); currentYear=today.getFullYear(); currentMonth=today.getMonth(); selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); }
+	function openYearMonthPicker(){ document.getElementById("yearInput").value=currentYear; document.getElementById("monthInput").value=currentMonth+1; document.getElementById("yearMonthModal").style.display="flex"; }
+	function goToYearMonth(){ let year=parseInt(document.getElementById("yearInput").value), month=parseInt(document.getElementById("monthInput").value); if(isNaN(year)||year<1900||year>2100){ showToast("请输入有效年份（1900-2100）"); return; } if(isNaN(month)||month<1||month>12){ showToast("请输入有效月份（1-12）"); return; } currentYear=year; currentMonth=month-1; selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); document.getElementById("yearMonthModal").style.display="none"; }
+	
+	let touchStartX=0,touchEndX=0, swipeEnabled=true;
+	function initSwipe(){ 
+		const container=document.querySelector(".container"); 
+		container.addEventListener("touchstart",(e)=>{ if (!swipeEnabled) return; touchStartX=e.changedTouches[0].screenX; }); 
+		container.addEventListener("touchend",(e)=>{ if (!swipeEnabled) return; touchEndX=e.changedTouches[0].screenX; if(touchEndX-touchStartX>50){ currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } else if(touchStartX-touchEndX>50){ currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } }); 
+	}
+	
+	function toggleSalaryMode() {
+		salaryDisplayMode = salaryDisplayMode === 'prorated' ? 'full' : 'prorated';
+		let modeText = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+		document.getElementById("modeBadge").innerHTML = modeText;
+		showToast(`已切换至「${modeText}」模式`);
+		updateStats();
+		updateIncomeCardDisplay();
+		if (settingsViewYear !== null) {
+			updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
+		} else {
+			updateIncomeCardDisplay();
+		}
+	}
+	
+	function showDetailModal(type) {
+		let stats = getCurrentMonthStats();
+		let modal = document.getElementById("detailModal");
+		let title = document.getElementById("detailModalTitle");
+		let body = document.getElementById("detailModalBody");
+		if (type === "overtime") {
+			title.innerText = "📊 工时详情";
+			body.innerHTML = `<div class="detail-row-item"><span class="detail-label">正班工时</span><span class="detail-amount">${stats.workdayHours.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">平时加班 (1.5倍)</span><span class="detail-amount">${stats.normalH.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">周末加班 (2倍)</span><span class="detail-amount">${stats.weekendH.toFixed(1)} 小时</span></div><div class="detail-row-item last-detail"><span class="detail-label">节假日加班 (3倍)</span><span class="detail-amount">${stats.holidayH.toFixed(1)} 小时</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">总工时</span><span class="detail-amount">${(stats.workdayHours + stats.normalH + stats.weekendH + stats.holidayH).toFixed(1)} 小时</span></div></div>`;
+		} else if (type === "salary") {
+			body.innerHTML = `<div class="detail-row-item"><span class="detail-label">底薪（${salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪'}）</span><span class="detail-amount">¥ ${formatMoney(baseSalary)}</span></div><div class="detail-row-item"><span class="detail-label">平时加班费</span><span class="detail-amount">¥ ${formatMoney(stats.normalH * getHourlyWage() * 1.5)}</span></div><div class="detail-row-item"><span class="detail-label">周末加班费</span><span class="detail-amount">¥ ${formatMoney(stats.weekendH * getHourlyWage() * 2)}</span></div><div class="detail-row-item"><span class="detail-label">节假日加班费</span><span class="detail-amount">¥ ${formatMoney(stats.holidayH * getHourlyWage() * 3)}</span></div><div class="detail-row-item"><span class="detail-label">日结收入</span><span class="detail-amount">¥ ${formatMoney(stats.salaryIncome)}</span></div><div class="detail-row-item"><span class="detail-label">补贴/福利</span><span class="detail-amount">+ ¥ ${formatMoney(settingsAllowances.reduce((s,a)=>s+a.amount,0))}</span></div><div class="detail-row-item last-detail"><span class="detail-label">扣款项</span><span class="detail-amount">- ¥ ${formatMoney(settingsDeductions.reduce((s,d)=>s+d.amount,0))}</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">实发工资</span><span class="detail-amount">¥ ${formatMoney(stats.totalSalary)}</span></div></div>`;
+		} else if (type === "attendance") {
+			let dayShiftDays = 0, nightShiftDays = 0;
+			let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
+			let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
+			for (let r of records) {
+				if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+					if (r.shift === "白班") dayShiftDays++;
+					else if (r.shift === "晚班") nightShiftDays++;
+				}
+			}
+			title.innerText = "📋 考勤摘要";
+			body.innerHTML = `
+				<div class="detail-row-double"><div class="detail-col"><span class="detail-label">出勤天数</span><span class="detail-amount">${stats.attendanceDays} 天</span></div><div class="detail-col"><span class="detail-label">缺勤天数</span><span class="detail-amount">${stats.absentDays} 天</span></div></div>
+				<div class="detail-row-item"><span class="detail-label">白班天数</span><span class="detail-amount">${dayShiftDays} 天</span></div>
+				<div class="detail-row-item"><span class="detail-label">夜班天数</span><span class="detail-amount">${nightShiftDays} 天</span></div>
+				<div class="detail-row-item"><span class="detail-label">休假</span><span class="detail-amount">${stats.vacationHours.toFixed(1)} 小时</span></div>
+				<div class="detail-row-item"><span class="detail-label">事假</span><span class="detail-amount">${stats.personalHours.toFixed(1)} 小时</span></div>
+				<div class="detail-row-item"><span class="detail-label">病假</span><span class="detail-amount">${stats.sickHours.toFixed(1)} 小时</span></div>
+				<div class="detail-row-item last-detail"><span class="detail-label">薪假</span><span class="detail-amount">${stats.paidHours.toFixed(1)} 小时</span></div>
+				<div class="detail-footer"><div class="detail-summary"><span class="detail-label">全勤状态</span><span class="detail-amount">${stats.isFullAttendance ? '🏆 全勤' : '⚠️ 缺勤'}</span></div></div>
+			`;
+		}
+		modal.style.display = "flex";
+	}
+	
+	function exportData() { 
+		let data = { records, allowances: settingsAllowances, deductions: settingsDeductions, baseSalary, exportTime: new Date().toLocaleString() }; 
+		let blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"}); 
+		let url = URL.createObjectURL(blob); 
+		let a = document.createElement("a"); 
+		a.href = url; a.download = `jiaban_backup_${new Date().toISOString().slice(0,19)}.json`; 
+		a.click(); URL.revokeObjectURL(url); showToast("导出成功"); 
+	}
+	
+	function importDataFromFile() {
+		let input = document.createElement('input');
+		input.type = 'file'; input.accept = 'application/json';
+		input.onchange = e => {
+			let file = e.target.files[0];
+			if (!file) return;
+			let reader = new FileReader();
+			reader.onload = ev => {
+				try {
+					let data = JSON.parse(ev.target.result);
+					if (data.records) records = data.records;
+					if (data.allowances) { let monthKey = getCurrentMonthKey(); monthlyAllowances[monthKey] = data.allowances; settingsAllowances = data.allowances; }
+					if (data.deductions) { let monthKey = getCurrentMonthKey(); monthlyDeductions[monthKey] = data.deductions; settingsDeductions = data.deductions; }
+					if (data.baseSalary) { setBaseSalaryForMonth(currentYear, currentMonth, data.baseSalary); baseSalary = data.baseSalary; }
+					localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
+					saveAllMonthlyData(); renderCalendar(); updateStats(); showToast("导入成功");
+				} catch(e) { showToast("文件解析失败"); }
+			};
+			reader.readAsText(file);
+		};
+		input.click();
+	}
+	
+	function switchPage(pageId) {
+		currentPage = pageId;
+		document.querySelectorAll(".page").forEach(page => page.classList.remove("active-page"));
+		document.getElementById(pageId + "Page").classList.add("active-page");
+		document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+		document.querySelector(`.nav-item[data-page="${pageId}"]`).classList.add("active");
+		const statsBar = document.getElementById("statsBarContainer"), footerSection = document.getElementById("footerSection");
+		if (pageId === "calendar") {
+			if (statsBar) statsBar.style.display = "flex";
+			if (footerSection) footerSection.style.display = "block";
+			swipeEnabled = true;
+			resetSettingsCardToCurrent();
+			renderCalendar(); renderBottom(); updateTodayButton();
+		} else {
+			if (statsBar) statsBar.style.display = "none";
+			if (footerSection) footerSection.style.display = "none";
+			swipeEnabled = false;
+			document.getElementById("todayFab").classList.add("hide");
+			if (isMultiSelectMode) exitMultiSelectMode();
+		}
+	}
+	
+	const FIXED_STATUTORY_HOLIDAYS = {"1-1": true, "4-4": true, "5-1": true, "5-2": true, "6-19": true, "9-25": true, "10-1": true, "10-2": true, "10-3": true};
+	function getSpringFestivalDays(year) { if (typeof Lunar === 'undefined') return []; try { const lunar = Lunar.fromYmd(year, 1, 1); const solar = lunar.getSolar(); const startDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay()); const days = []; for (let i = 0; i < 4; i++) { const d = new Date(startDate); d.setDate(startDate.getDate() + i); days.push(`${d.getMonth()+1}-${d.getDate()}`); } return days; } catch(e) { return []; } }
+	function isStatutoryHoliday(year, month, day) { const key = `${month}-${day}`; if (FIXED_STATUTORY_HOLIDAYS[key]) return true; const springDays = getSpringFestivalDays(year); if (springDays.includes(key)) return true; return false; }
+	function waitForLunar() { return new Promise((resolve) => { if (typeof Lunar !== 'undefined') resolve(); else { let interval = setInterval(() => { if (typeof Lunar !== 'undefined') { clearInterval(interval); resolve(); } }, 100); setTimeout(() => { clearInterval(interval); resolve(); }, 3000); } }); }
+	let tiaoxiuData = {}; async function loadTiaoxiu() { try { const response = await fetch('./tiaoxiu.json'); tiaoxiuData = await response.json(); } catch(e) {} }
+	function getTiaoxiu(year, dateStr) { if (!tiaoxiuData[year]) return { isFangjia: false, isJiaban: false }; return { isFangjia: tiaoxiuData[year].fangjia?.includes(dateStr) || false, isJiaban: tiaoxiuData[year].jiaban?.includes(dateStr) || false }; }
+	function getLunarInfo(year, month, day) { try { if (typeof Lunar === 'undefined') return { lunarStr: "加载中", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; const date = new Date(year, month-1, day); const lunar = Lunar.fromDate(date); const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']; const festivals = [...new Set([...lunar.getFestivals(), ...lunar.getSolar().getFestivals()])]; return { lunarStr: `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`, jieqi: lunar.getJieQi() || '', festivals, isStatutory: isStatutoryHoliday(year, month, day), weekday: weekdays[date.getDay()] }; } catch(e) { return { lunarStr: "", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; } }
+	function getCellDisplayList(festivals, jieqi, lunarDay) { let list = []; for (let f of festivals) if (f && f.length <= 4) list.push(f); if (jieqi && jieqi.length <= 4 && !list.includes(jieqi)) list.push(jieqi); if (list.length === 0 && lunarDay && lunarDay.length <= 4) list.push(lunarDay); return [...new Set(list)]; }
+	function getBottomDisplayText(festivals, lunarStr, weekday) { return festivals.length ? festivals[0] : `${lunarStr} · ${weekday}`; }
+	
+	let selectedMethodInner = null, isSliderAnimating = false;
+	const salaryDrawerMask = document.getElementById("salaryDrawerMask"), salaryDrawerContainer = document.getElementById("salaryDrawerContainer"), salaryPagesSlider = document.getElementById("salaryPagesSlider"), salaryDrawerBack = document.getElementById("salaryDrawerBack"), salaryDrawerTitle = document.getElementById("salaryDrawerTitle"), nextStepBtnInner = document.getElementById("nextStepBtnInner"), saveSalaryEditBtnInner = document.getElementById("saveSalaryEditBtnInner");
+	
+	function showSalaryDrawer() { salaryDrawerMask.style.display = "block"; setTimeout(() => { salaryDrawerMask.classList.add("show"); salaryDrawerContainer.classList.add("show"); }, 10); }
+	function hideSalaryDrawer() { salaryDrawerMask.classList.remove("show"); salaryDrawerContainer.classList.remove("show"); setTimeout(() => { salaryDrawerMask.style.display = "none"; }, 300); }
+	function goToSelectPage() { if (isSliderAnimating) return; isSliderAnimating = true; salaryPagesSlider.style.transform = "translateX(0%)"; salaryDrawerTitle.innerText = "切换工时制度"; setTimeout(() => { isSliderAnimating = false; }, 300); }
+	function goToEditPage() { if (isSliderAnimating) return; isSliderAnimating = true; salaryPagesSlider.style.transform = "translateX(-50%)"; salaryDrawerTitle.innerText = "工资设定"; setTimeout(() => { isSliderAnimating = false; }, 300); }
+	
+	function renderEditFormInner(method) {
+		const container = document.getElementById("editFormContainerInner");
+		let hourly = baseSalary / 21.75 / 8, html = "";
+		if (method === 'formal') {
+			html = `<div class="edit-form-field"><span class="edit-form-label">月基本工资</span><div class="edit-form-input-wrapper"><input type="number" id="editBaseSalaryInner" class="edit-form-input" placeholder="0" step="1" value="${baseSalary === 0 ? '' : baseSalary}"><span class="edit-form-unit">元/月</span></div></div><div class="edit-form-field"><span class="edit-form-label">小时工资</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">工作日加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWorkdayMultiInner" class="edit-form-input" step="0.1" value="1.5"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWorkdayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 1.5).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">休息日加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWeekendMultiInner" class="edit-form-input" step="0.1" value="2.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWeekendWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 2).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假日加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editHolidayMultiInner" class="edit-form-input" step="0.1" value="3.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*小时工资 = 月基本工资 ÷ 21.75天 ÷ 8小时<br>*修改底薪自动计算时薪，计算结果可手动编辑</div>`;
+		} else if (method === 'hourly') {
+			html = `<div class="edit-form-field"><span class="edit-form-label">平日时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*节假日为劳动节、国庆节、春节等法定节假日。</div>`;
+		} else if (method === 'comprehensive') {
+			let standardHours = getMonthWorkdayCount(currentYear, currentMonth) * 8;
+			html = `<div class="edit-form-field"><span class="edit-form-label">月基本工资</span><div class="edit-form-input-wrapper"><input type="number" id="editBaseSalaryInner" class="edit-form-input" placeholder="0" step="1" value="${baseSalary === 0 ? '' : baseSalary}"><span class="edit-form-unit">元/月</span></div></div><div class="edit-form-field"><span class="edit-form-label">小时工资</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">加班时薪</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWorkdayMultiInner" class="edit-form-input" step="0.1" value="1.5"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWorkdayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 1.5).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*当月标准工时为 ${standardHours} 小时，超过部分才算加班</div>`;
+		}
+		container.innerHTML = html;
+		if (method === 'formal' || method === 'comprehensive') {
+			const baseInput = document.getElementById("editBaseSalaryInner"), hourlyInput = document.getElementById("editHourlyWageInner"), workdayWage = document.getElementById("editWorkdayWageInner"), weekendWage = document.getElementById("editWeekendWageInner"), holidayWage = document.getElementById("editHolidayWageInner"), workdayMulti = document.getElementById("editWorkdayMultiInner"), weekendMulti = document.getElementById("editWeekendMultiInner"), holidayMulti = document.getElementById("editHolidayMultiInner");
+			function updateFromBase() { let bs = parseFloat(baseInput?.value) || 0; bs = Math.round(bs); let hbs = bs / 21.75 / 8; if (hourlyInput && !hourlyInput._isManualEdit) hourlyInput.value = hbs.toFixed(2); let wd = parseFloat(workdayMulti?.value) || 1.5, we = parseFloat(weekendMulti?.value) || 2, hd = parseFloat(holidayMulti?.value) || 3; if (workdayWage && !workdayWage._isManualEdit) workdayWage.value = (hbs * wd).toFixed(2); if (weekendWage && !weekendWage._isManualEdit) weekendWage.value = (hbs * we).toFixed(2); if (holidayWage && !holidayWage._isManualEdit) holidayWage.value = (hbs * hd).toFixed(2); }
+			function updateFromMultipliers() { let bs = parseFloat(baseInput?.value) || 0; bs = Math.round(bs); let hbs = bs / 21.75 / 8; let wd = parseFloat(workdayMulti?.value) || 1.5, we = parseFloat(weekendMulti?.value) || 2, hd = parseFloat(holidayMulti?.value) || 3; if (workdayWage && !workdayWage._isManualEdit) workdayWage.value = (hbs * wd).toFixed(2); if (weekendWage && !weekendWage._isManualEdit) weekendWage.value = (hbs * we).toFixed(2); if (holidayWage && !holidayWage._isManualEdit) holidayWage.value = (hbs * hd).toFixed(2); }
+			if (baseInput) baseInput.addEventListener("input", updateFromBase);
+			if (workdayMulti) workdayMulti.addEventListener("input", updateFromMultipliers);
+			if (weekendMulti) weekendMulti.addEventListener("input", updateFromMultipliers);
+			if (holidayMulti) holidayMulti.addEventListener("input", updateFromMultipliers);
+			[workdayWage, weekendWage, holidayWage, hourlyInput].forEach(inp => { if (inp) { inp.addEventListener("focus", () => { inp._isManualEdit = true; }); inp.addEventListener("blur", () => { if (inp.value === "") inp.value = "0"; }); } });
+			updateFromBase();
+		}
+		if (method === 'hourly') { const hourlyInput = document.getElementById("editHourlyWageInner"), holidayInput = document.getElementById("editHolidayWageInner"); if (hourlyInput) hourlyInput.addEventListener("input", () => { hourlyInput._isManualEdit = true; }); if (holidayInput) holidayInput.addEventListener("input", () => { holidayInput._isManualEdit = true; }); }
+	}
+	
+	function saveSalaryEditInner() {
+		const method = selectedMethodInner;
+		let newBaseSalary = 0;
+		if (method === 'formal') { let newBase = parseFloat(document.getElementById("editBaseSalaryInner")?.value) || 0, newHourly = parseFloat(document.getElementById("editHourlyWageInner")?.value) || 0; newBaseSalary = newBase > 0 ? Math.round(newBase) : (newHourly > 0 ? Math.round(newHourly * 21.75 * 8) : 0); currentSalaryMethodName = "正式工/合同工"; }
+		else if (method === 'comprehensive') { let newBase = parseFloat(document.getElementById("editBaseSalaryInner")?.value) || 0, newHourly = parseFloat(document.getElementById("editHourlyWageInner")?.value) || 0; newBaseSalary = newBase > 0 ? Math.round(newBase) : (newHourly > 0 ? Math.round(newHourly * 21.75 * 8) : 0); currentSalaryMethodName = "综合工时"; }
+		else if (method === 'hourly') { let newHourly = parseFloat(document.getElementById("editHourlyWageInner")?.value) || 0; newBaseSalary = Math.round(newHourly * 21.75 * 8); currentSalaryMethodName = "小时工/临时工"; }
+		if (newBaseSalary < 0) newBaseSalary = 0;
+		setBaseSalaryForMonth(currentYear, currentMonth, newBaseSalary);
+		baseSalary = newBaseSalary;
+		let monthKey = getCurrentMonthKey();
+		monthlySalaryMethodName[monthKey] = currentSalaryMethodName;
+		globalSalaryConfigured = true;
+		saveAllMonthlyData();
+		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
+		localStorage.setItem("salaryManuallySet", "true");
+		document.getElementById("salaryMethodDisplay").innerText = currentSalaryMethodName;
+		renderCalendar(); renderBottom(); updateStats(); updateIncomeCardDisplay();
+		showToast("保存成功");
+		hideSalaryDrawer();
+		let firstMask = document.querySelector(".first-use-mask");
+		if (firstMask) firstMask.remove();
+		let modal = document.querySelector(".unified-modal");
+		if (modal && modal.innerHTML.includes("欢迎使用记加班")) modal.remove();
+	}
+	
+	function initSalaryDrawer() {
+		document.getElementById("setSalaryMethodBtn").onclick = () => {
+			selectedMethodInner = null;
+			document.querySelectorAll("#methodListInner .salary-method-card").forEach(c => c.classList.remove("selected"));
+			if (baseSalary > 0 && currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") {
+				let methodMap = { "正式工/合同工": "formal", "综合工时": "comprehensive", "小时工/临时工": "hourly" };
+				let savedMethod = methodMap[currentSalaryMethodName];
+				if (savedMethod) { let savedCard = document.querySelector(`#methodListInner .salary-method-card[data-method="${savedMethod}"]`); if (savedCard) { savedCard.classList.add("selected"); selectedMethodInner = savedMethod; nextStepBtnInner.classList.remove("disabled"); } }
+			} else { nextStepBtnInner.classList.add("disabled"); }
+			goToSelectPage(); showSalaryDrawer();
+		};
+		salaryDrawerBack.onclick = () => { const currentTransform = salaryPagesSlider.style.transform; if (currentTransform === "translateX(-50%)") goToSelectPage(); else hideSalaryDrawer(); };
+		document.querySelectorAll("#methodListInner .salary-method-card").forEach(card => { card.onclick = () => { document.querySelectorAll("#methodListInner .salary-method-card").forEach(c => c.classList.remove("selected")); card.classList.add("selected"); selectedMethodInner = card.getAttribute("data-method"); nextStepBtnInner.classList.remove("disabled"); }; });
+		nextStepBtnInner.onclick = () => { if (!selectedMethodInner) { showToast("请先选择计薪方式"); return; } renderEditFormInner(selectedMethodInner); goToEditPage(); };
+		saveSalaryEditBtnInner.onclick = saveSalaryEditInner;
+		salaryDrawerMask.onclick = (e) => {
+			if (e.target === salaryDrawerMask) {
+				hideSalaryDrawer();
+			}
+		};
+	}
+	
+	function showHelpSubPage() {
+		document.getElementById("helpSubPage").classList.add("z_show");
+	}
+	
+	function closeHelpSubPage() {
+		document.getElementById("helpSubPage").classList.remove("z_show");
+	}
+	
+	function checkFirstUse() {
+		let hasConfig = globalSalaryConfigured;
+		if (!hasConfig) {
+			for (let key in monthlySalaryMethodName) {
+				if (monthlySalaryMethodName[key] && monthlySalaryMethodName[key] !== "暂未设置计薪方式") {
+					hasConfig = true;
+					globalSalaryConfigured = true;
+					break;
+				}
+			}
+		}
+		if (!hasConfig) {
+			let modal = document.createElement("div");
+			modal.className = "unified-modal";
+			modal.innerHTML = `<div class="unified-card"><div class="unified-header"><span>🎉</span><span style="margin:0 10px;">欢迎使用记加班</span><span class="mirror">🎉</span></div><div class="unified-body">请先设置薪资计算方式<br>以便准确统计您的加班工资。</div><div class="unified-buttons"><button class="unified-confirm" id="firstUseGoBtn">去设置</button></div></div>`;
+			document.body.appendChild(modal);
+			modal.style.display = "flex";
+			document.getElementById("firstUseGoBtn").onclick = () => {
+				modal.remove();
+				switchPage("settings");
+				setTimeout(() => { document.getElementById("setSalaryMethodBtn").click(); }, 100);
+			};
+		}
+	}
+	
+	async function init() {
+		await waitForLunar();
+		await loadTiaoxiu();
+		loadAllMonthlyData();
+		let raw = localStorage.getItem("overtime_final");
+		if (raw) { try { let d = JSON.parse(raw); records = d.records || []; payType = d.payType || "formal"; } catch(e) {} }
+		let today = new Date();
+		currentYear = today.getFullYear();
+		currentMonth = today.getMonth();
+		selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+		loadDataForCurrentMonth();
+		renderCalendar();
+		renderBottom();
+		
+		document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
+		document.getElementById("remarkModalConfirm").onclick = closeRemarkModal;
+		document.getElementById("remarkModal").onclick = (e) => { if (e.target === document.getElementById("remarkModal")) closeRemarkModal(); };
+		
+		document.getElementById("footerTitle").onclick = () => {
+			if (isMultiSelectMode) {
+				exitMultiSelectMode();
+				showToast("已退出多选模式");
+			} else {
+				showToast("记加班");
+			}
+		};
+		
+		document.getElementById("statOvertimeCard").onclick = () => showDetailModal("overtime");
+		document.getElementById("statIncomeCard").onclick = () => showDetailModal("salary");
+		document.getElementById("statAttendanceCard").onclick = () => showDetailModal("attendance");
+		
+		let statIncomeCard = document.getElementById("statIncomeCard");
+		let incomePressTimer = null;
+		statIncomeCard.addEventListener("touchstart", () => {
+			incomePressTimer = setTimeout(() => {
+				toggleSalaryMode();
+			}, 500);
+		});
+		statIncomeCard.addEventListener("touchend", () => { if (incomePressTimer) clearTimeout(incomePressTimer); });
+		statIncomeCard.addEventListener("touchmove", () => { if (incomePressTimer) clearTimeout(incomePressTimer); });
+		
+		document.getElementById("prevMonth").onclick = () => { currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
+		document.getElementById("nextMonth").onclick = () => { currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
+		document.getElementById("todayFab").onclick = () => { let t=new Date(); currentYear=t.getFullYear(); currentMonth=t.getMonth(); selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
+		document.getElementById("currentMonthLabel").onclick = openYearMonthPicker;
+		document.getElementById("closeYearMonthBtn").onclick = () => document.getElementById("yearMonthModal").style.display = "none";
+		document.getElementById("cancelYearMonthBtn").onclick = () => document.getElementById("yearMonthModal").style.display = "none";
+		document.getElementById("confirmYearMonthBtn").onclick = goToYearMonth;
+		document.getElementById("closePayBtn").onclick = () => document.getElementById("payModal").style.display = "none";
+		document.getElementById("savePayBtn").onclick = () => { let newBase = Math.round(parseFloat(document.getElementById("baseSalaryInput").value) || 0); setBaseSalaryForMonth(currentYear, currentMonth, newBase); baseSalary = newBase; localStorage.setItem("salaryManuallySet", "true"); localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); saveAllMonthlyData(); renderCalendar(); renderBottom(); updateStats(); document.getElementById("payModal").style.display = "none"; showToast("已保存"); };
+		document.getElementById("deleteRecordBtn").onclick = deleteCurrentRecord;
+		document.getElementById("closeDrawerBtn").onclick = closeDrawer;
+		document.getElementById("saveDrawerBtn").onclick = saveFromDrawer;
+		document.getElementById("drawerMask").onclick = closeDrawer;
+		
+		bindShiftEvents();
+		initSwipe();
+		
+		initSalaryDrawer();
+		bindIncomeCardLongPress();
+		initSettingsCardSwipe();
+		
+		document.getElementById("importDataBtn").onclick = importDataFromFile;
+		document.getElementById("exportDataBtn").onclick = exportData;
+		document.getElementById("reuseLastMonthBtn").onclick = reuseLastMonthData;
+		document.getElementById("clearDataBtn").onclick = clearAllData;
+		document.getElementById("settingsAddSubsidyBtn").onclick = z_openAddSub;
+		document.getElementById("settingsAddDeductionBtn").onclick = z_openAddDed;
+		document.getElementById("z_closeSub").onclick = z_closeSubPage;
+		document.getElementById("z_saveSub").onclick = z_saveSub;
+		document.getElementById("z_closeDed").onclick = z_closeDedPage;
+		document.getElementById("z_saveDed").onclick = z_saveDed;
+		document.getElementById("closeDetailModal").onclick = () => document.getElementById("detailModal").style.display = "none";
+		document.getElementById("detailModal").onclick = (e) => { if (e.target === document.getElementById("detailModal")) document.getElementById("detailModal").style.display = "none"; };
+		document.querySelectorAll(".nav-item").forEach(item => { item.onclick = () => switchPage(item.getAttribute("data-page")); });
+		document.getElementById("payModal").onclick = (e) => { if(e.target === document.getElementById("payModal")) document.getElementById("payModal").style.display = "none"; };
+		document.getElementById("z_delModal").onclick = (e) => { if(e.target === document.getElementById("z_delModal")) document.getElementById("z_delModal").style.display = "none"; };
+		
+		document.getElementById("helpBtn").onclick = showHelpSubPage;
+		document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
+		
+		document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(b => b.classList.remove('z_active')); btn.classList.add('z_active'); z_switchCalc(btn.dataset.type); }; });
+		document.getElementById("z_dayToggle").onclick = z_toggleDayAuto;
+		document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(b => b.classList.remove('z_active')); btn.classList.add('z_active'); z_dedSubType = btn.dataset.subtype; if (z_dedSubType === 'fixed') { document.getElementById('z_dedFixedArea').style.display = 'block'; document.getElementById('z_dedPercentArea').style.display = 'none'; document.getElementById('z_dedUnit').innerText = '元/月'; } else { document.getElementById('z_dedFixedArea').style.display = 'none'; document.getElementById('z_dedPercentArea').style.display = 'block'; z_updatePercentDetail(); } }; });
+		document.querySelectorAll('#z_leaveSubSwitch .z_subCalcSwitchBtn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('#z_leaveSubSwitch .z_subCalcSwitchBtn').forEach(b => b.classList.remove('z_active')); btn.classList.add('z_active'); z_leaveSubType = btn.dataset.subtype; if (z_leaveSubType === 'fixed') { document.getElementById('z_dedFixedArea').style.display = 'block'; document.getElementById('z_dedPercentArea').style.display = 'none'; document.getElementById('z_dedUnit').innerText = '元/小时'; } else { document.getElementById('z_dedFixedArea').style.display = 'none'; document.getElementById('z_dedPercentArea').style.display = 'block'; z_updatePercentDetail(); } }; });
+		document.getElementById("z_dedPercent").oninput = z_updatePercentDetail;
+		document.getElementById("z_hourToggle").onclick = z_toggleHourAuto;
+		
+		let displayName = (currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") ? currentSalaryMethodName : "暂未设置计薪方式";
+		document.getElementById("salaryMethodDisplay").innerText = displayName;
+		document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+		
+		switchPage("calendar");
+		checkFirstUse();
+	}
+	init();
+</script>
+</body>
+</html>
