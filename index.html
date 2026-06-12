@@ -74,6 +74,7 @@
 			color: rgba(255,255,255,0.8);
 		}
 		
+		/* 模式标签 - 右下角小胶囊 */
 		.mode-badge {
 			position: absolute;
 			bottom: 5px;
@@ -762,6 +763,7 @@
 		.drawer-buttons button:active { transform: scale(0.96); }
 		.save-drawer { background: #66b3ff; color: white; }
 		
+		/* 备注弹窗样式 */
 		.remark-modal-mask {
 			position: fixed;
 			top: 0;
@@ -1385,13 +1387,19 @@
 			padding: 0 16px 14px 16px;
 		}
 		
+		/* 居中占位符样式 */
 		.calendar-placeholder {
 			text-align: center;
-			padding: 40px;
+			padding: 60px 20px;
 			color: #909399;
 			font-size: 0.9rem;
 			font-weight: 500;
-			white-space: nowrap;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 300px;
+			background: #fff;  /* 添加白色背景 */
+			
 		}
 		
 		.edit-form-container {
@@ -1407,17 +1415,8 @@
 		.settings-item.clear-data .settings-label {
 			color: #f56c6c;
 		}
-		
-		/* 横条加载提示 */
-		.loading-bar {
-			text-align: center;
-			padding: 40px;
-			color: #909399;
-			font-size: 0.9rem;
-			font-weight: 500;
-		}
 	</style>
-	<script src="https://cdn.jsdmirror.com/gh/xnm66/jiaban@main/lunar.js"></script>
+	<script src="./lunar.js"></script>
 </head>
 <body>
 <div class="container">
@@ -1430,8 +1429,9 @@
 		<div class="calendar-card">
 			<div class="title-bar"><div class="mini-title">📅 记加班<span class="small-text"> · 不错过每一份努力</span></div><div class="month-nav"><button class="month-nav-btn" id="prevMonth">‹</button><span class="current-month" id="currentMonthLabel">2026年6月</span><button class="month-nav-btn" id="nextMonth">›</button></div></div>
 			<div class="week-row"><div class="weekday">一</div><div class="weekday">二</div><div class="weekday">三</div><div class="weekday">四</div><div class="weekday">五</div><div class="weekday">六</div><div class="weekday">日</div></div>
-			<div class="cal-grid" id="calendarGrid">
-				<div class="loading-bar">✨ 加载中，请稍候... ✨</div>
+			<div id="calendarGridContainer">
+				<div class="cal-grid" id="calendarGrid"></div>
+				<div id="calendarLoading" class="calendar-placeholder" style="display: flex;">加载中，请稍后...</div>
 			</div>
 			<div class="bottom-detail" id="bottomDetail"></div>
 		</div>
@@ -1728,13 +1728,9 @@
 <div id="toastMsg" class="toast"></div>
 
 <script>
-	// ==================== Service Worker 注册（离线缓存） ====================
+	// ==================== Service Worker 注册（离线缓存）====================
 	if ('serviceWorker' in navigator) {
-		navigator.serviceWorker.register('https://cdn.jsdmirror.com/gh/xnm66/jiaban@main/sw.js').then(reg => {
-			console.log('Service Worker 注册成功');
-		}).catch(err => {
-			console.log('Service Worker 注册失败', err);
-		});
+		navigator.serviceWorker.register('./sw.js');
 	}
 	
 	// ==================== 完整 JavaScript 代码 ====================
@@ -1859,7 +1855,7 @@
 		updateIncomeCardDisplay();
 		updateStats();
 		saveAllMonthlyData();
-		showToast("已复用上月数据");
+		showToast("复用成功 ✅");
 	}
 	
 	function z_saveSubDed() {
@@ -2014,7 +2010,7 @@
 		let confirmBtn = document.getElementById('z_confirmDel');
 		let newBtn = confirmBtn.cloneNode(true);
 		confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
-		newBtn.onclick = () => { onConfirm(); document.getElementById('z_delModal').style.display = 'none'; showToast("已删除"); };
+		newBtn.onclick = () => { onConfirm(); document.getElementById('z_delModal').style.display = 'none'; showToast("删除成功 ✅"); };
 		document.getElementById('z_closeDelModal').onclick = () => document.getElementById('z_delModal').style.display = 'none';
 		document.getElementById('z_cancelDel').onclick = () => document.getElementById('z_delModal').style.display = 'none';
 		document.getElementById('z_delModal').style.display = 'flex';
@@ -3105,7 +3101,7 @@
 			renderCalendar();
 			renderBottom();
 			updateStats();
-			showToast("已清除所有数据");
+			showToast("已清除所有数据 ✅");
 		});
 	}
 	
@@ -3292,7 +3288,7 @@
 		recalcDayBasedAllowances();
 		updateIncomeCardDisplay();
 		exitMultiSelectMode();
-		showToast("调班成功");
+		showToast("调班成功 ✅");
 	}
 	
 	function enterMultiSelectMode(startDateStr) {
@@ -3347,7 +3343,7 @@
 		recalcDayBasedAllowances();
 		updateIncomeCardDisplay();
 		exitMultiSelectMode();
-		showToast(`已批量保存 ${count} 天记录`);
+		showToast(`批量添加成功 ✅`);
 	}
 	
 	function batchDeleteRecords() {
@@ -3363,7 +3359,7 @@
 		recalcDayBasedAllowances();
 		updateIncomeCardDisplay();
 		exitMultiSelectMode();
-		showToast(`已批量删除 ${count} 天记录`);
+		showToast(`批量删除成功 ✅`);
 	}
 	
 	function bindTimeControlEvents() {
@@ -3444,10 +3440,16 @@
 	function renderCalendar() { 
 		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
 		if (!hasSalaryConfig) {
-			document.getElementById("calendarGrid").innerHTML = '<div class="calendar-placeholder">✨ 请先在设置中设置薪资计算方式 ✨</div>';
+			document.getElementById("calendarGrid").style.display = "none";
+			document.getElementById("calendarLoading").style.display = "flex";
+			document.getElementById("calendarLoading").innerHTML = "请在设置页面中设置薪资方式";
+			document.getElementById("calendarLoading").className = "calendar-placeholder";
 			document.getElementById("bottomDetail").innerHTML = '';
 			return;
 		}
+		document.getElementById("calendarLoading").style.display = "none";
+		document.getElementById("calendarGrid").style.display = "grid";
+		
 		let days = getCurrentMonthDays(); 
 		let grid = document.getElementById("calendarGrid"); 
 		stopAllRotate(); 
@@ -3535,7 +3537,7 @@
 		let displayText = getBottomDisplayText(lunarInfo.festivals, lunarInfo.lunarStr, lunarInfo.weekday); 
 		let rec = getDayRecords(selectedDate)[0], totalHours = getDayHours(selectedDate), totalIncome = getDayIncome(selectedDate); 
 		let bottom = document.getElementById("bottomDetail"); 
-		if (!rec) bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span class="no-record-text">✨ 暂无记录 ✨</span></div><button class="action-btn" id="addRecordBtn"><span>+</span>记加班</button></div>`;
+		if (!rec) bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span class="no-record-text">暂无记录</span></div><button class="action-btn" id="addRecordBtn"><span class="plus-icon">+</span>记加班</button></div>`;
 		else if (rec.type === "salary") bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>日结</span><span class="hours-value">${formatMoney(rec.amount || 0)}元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`;
 		else if (rec.shift === "休息") { 
 			let typeName = rec.type === "vacation" ? "休假" : (rec.type === "personal" ? "事假" : (rec.type === "sick" ? "病假" : (rec.type === "paid" ? "薪假" : "休息"))); 
@@ -3687,8 +3689,21 @@
 	
 	function handleLockShift(shiftValue) { 
 		if (isEditMode) return; 
-		if (lockedShift === shiftValue) { lockedShift = null; saveLockedShift(); showToast(`✅ 已解锁 ${shiftValue} 班次`); } 
-		else { lockedShift = shiftValue; saveLockedShift(); showToast(`🔒 已锁定 "${lockedShift}"，后续新增记录默认使用此班次`); currentShift = lockedShift; document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active")); document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => { if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active"); }); updateTypeNavByShift(); renderTimeGrid(); updateTimeDisplay(); } 
+		if (lockedShift === shiftValue) { 
+			lockedShift = null; 
+			saveLockedShift(); 
+			showToast(`✅ 已解锁「${shiftValue}」班次`); 
+		} else { 
+			lockedShift = shiftValue; 
+			saveLockedShift(); 
+			showToast(`🔒 已锁定「${lockedShift}」班次`); 
+			currentShift = lockedShift; 
+			document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active")); 
+			document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => { if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active"); }); 
+			updateTypeNavByShift(); 
+			renderTimeGrid(); 
+			updateTimeDisplay(); 
+		} 
 		updateLockUI(); 
 	}
 	
@@ -3714,7 +3729,7 @@
 	function openDrawer() { 
 		if (!selectedDate) return; 
 		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
-		if (!hasSalaryConfig) { showToast("请先在设置中设置薪资计算方式"); return; }
+		if (!hasSalaryConfig) { showToast("请先在设置页面中设置薪资方式"); return; }
 		let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
 		document.getElementById("drawerDateTitle").innerText = `${year}年${month}月${day}日`; 
 		let existing = getDayRecords(selectedDate)[0]; 
@@ -3799,7 +3814,7 @@
 		if (idx !== -1) { 
 			records.splice(idx, 1); 
 			localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); 
-			renderCalendar(); renderBottom(); updateStats(); closeDrawer(); showToast("已删除"); 
+			renderCalendar(); renderBottom(); updateStats(); closeDrawer(); showToast("删除成功 ✅"); 
 		} else { showToast("暂无记录可删除"); closeDrawer(); } 
 		renderSettingsAllowancesDeductions(); updateIncomeCardDisplay();
 	}
@@ -3816,11 +3831,17 @@
 		let remark = document.getElementById("remarkInput").value; 
 		let idx = records.findIndex(r => r.date === selectedDate); 
 		let existingRec = idx >= 0 ? records[idx] : null;
+		let isEdit = existingRec !== null;
 		let newRec = currentType === "salary" ? { id: Date.now() + "-" + Math.random(), date: selectedDate, hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { id: Date.now() + "-" + Math.random(), date: selectedDate, hours: currentHours, amount: 0, type: currentType, shift: currentShift, remark: remark };
 		if (existingRec && existingRec.swapped) newRec.swapped = existingRec.swapped;
 		if (idx >= 0) records[idx] = newRec; else records.push(newRec); 
 		localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); 
-		renderCalendar(); renderBottom(); updateStats(); closeDrawer(); showToast("已记录"); 
+		renderCalendar(); renderBottom(); updateStats(); closeDrawer(); 
+		if (isEdit) {
+			showToast("修改成功 ✅");
+		} else {
+			showToast("添加成功 ✅");
+		}
 		renderSettingsAllowancesDeductions(); updateIncomeCardDisplay(); recalcDayBasedAllowances(); updateIncomeCardDisplay();
 	}
 	
@@ -3839,7 +3860,7 @@
 		salaryDisplayMode = salaryDisplayMode === 'prorated' ? 'full' : 'prorated';
 		let modeText = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
 		document.getElementById("modeBadge").innerHTML = modeText;
-		showToast(`✨ 已切换至「${modeText}」模式 ✨`);
+		showToast(`✨ 已切换「${modeText}」模式 ✨`);
 		updateStats();
 		updateIncomeCardDisplay();
 		if (settingsViewYear !== null) {
@@ -3890,7 +3911,7 @@
 		let url = URL.createObjectURL(blob); 
 		let a = document.createElement("a"); 
 		a.href = url; a.download = `jiaban_backup_${new Date().toISOString().slice(0,19)}.json`; 
-		a.click(); URL.revokeObjectURL(url); showToast("导出成功"); 
+		a.click(); URL.revokeObjectURL(url); showToast("导出成功 ✅"); 
 	}
 	
 	function importDataFromFile() {
@@ -3908,7 +3929,7 @@
 					if (data.deductions) { let monthKey = getCurrentMonthKey(); monthlyDeductions[monthKey] = data.deductions; settingsDeductions = data.deductions; }
 					if (data.baseSalary) { setBaseSalaryForMonth(currentYear, currentMonth, data.baseSalary); baseSalary = data.baseSalary; }
 					localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary }));
-					saveAllMonthlyData(); renderCalendar(); updateStats(); showToast("导入成功");
+					saveAllMonthlyData(); renderCalendar(); updateStats(); showToast("导入成功 ✅");
 				} catch(e) { showToast("文件解析失败"); }
 			};
 			reader.readAsText(file);
@@ -3944,7 +3965,7 @@
 	function waitForLunar() { return new Promise((resolve) => { if (typeof Lunar !== 'undefined') resolve(); else { let interval = setInterval(() => { if (typeof Lunar !== 'undefined') { clearInterval(interval); resolve(); } }, 100); setTimeout(() => { clearInterval(interval); resolve(); }, 3000); } }); }
 	let tiaoxiuData = {}; async function loadTiaoxiu() { 
 		try { 
-			const response = await fetch('https://cdn.jsdmirror.com/gh/xnm66/jiaban@main/tiaoxiu.json'); 
+			const response = await fetch('./tiaoxiu.json'); 
 			tiaoxiuData = await response.json(); 
 		} catch(e) { 
 			console.log('加载调班数据失败，使用默认配置'); 
@@ -4007,7 +4028,7 @@
 		localStorage.setItem("salaryManuallySet", "true");
 		document.getElementById("salaryMethodDisplay").innerText = currentSalaryMethodName;
 		renderCalendar(); renderBottom(); updateStats(); updateIncomeCardDisplay();
-		showToast("保存成功");
+		showToast("保存成功 ✅");
 		hideSalaryDrawer();
 		let firstMask = document.querySelector(".first-use-mask");
 		if (firstMask) firstMask.remove();
@@ -4073,7 +4094,10 @@
 	}
 	
 	async function init() {
-		document.getElementById("calendarGrid").innerHTML = '<div class="loading-bar">✨ 正在加载，请稍候... ✨</div>';
+		document.getElementById("calendarGrid").style.display = "none";
+		document.getElementById("calendarLoading").style.display = "flex";
+		document.getElementById("calendarLoading").innerHTML = "加载中，请稍后...";
+		document.getElementById("calendarLoading").className = "calendar-placeholder";
 		
 		await waitForLunar();
 		await loadTiaoxiu();
@@ -4123,7 +4147,7 @@
 		document.getElementById("cancelYearMonthBtn").onclick = () => document.getElementById("yearMonthModal").style.display = "none";
 		document.getElementById("confirmYearMonthBtn").onclick = goToYearMonth;
 		document.getElementById("closePayBtn").onclick = () => document.getElementById("payModal").style.display = "none";
-		document.getElementById("savePayBtn").onclick = () => { let newBase = Math.round(parseFloat(document.getElementById("baseSalaryInput").value) || 0); setBaseSalaryForMonth(currentYear, currentMonth, newBase); baseSalary = newBase; localStorage.setItem("salaryManuallySet", "true"); localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); saveAllMonthlyData(); renderCalendar(); renderBottom(); updateStats(); document.getElementById("payModal").style.display = "none"; showToast("已保存"); };
+		document.getElementById("savePayBtn").onclick = () => { let newBase = Math.round(parseFloat(document.getElementById("baseSalaryInput").value) || 0); setBaseSalaryForMonth(currentYear, currentMonth, newBase); baseSalary = newBase; localStorage.setItem("salaryManuallySet", "true"); localStorage.setItem("overtime_final", JSON.stringify({ records, payType, baseSalary })); saveAllMonthlyData(); renderCalendar(); renderBottom(); updateStats(); document.getElementById("payModal").style.display = "none"; showToast("保存成功 ✅"); };
 		document.getElementById("deleteRecordBtn").onclick = deleteCurrentRecord;
 		document.getElementById("closeDrawerBtn").onclick = closeDrawer;
 		document.getElementById("saveDrawerBtn").onclick = saveFromDrawer;
