@@ -1,10 +1,12 @@
 // sw.js - Stale-While-Revalidate（秒开 + 后台更新）
-const CACHE_NAME = 'jiaban-v6';
+const CACHE_NAME = 'jiaban-v7';
 
-// 只缓存核心资源，避免缓存过大
+// 缓存所有核心资源
 const urlsToCache = [
     './',
-    './index.html'
+    './index.html',
+    './lunar.js',
+    './tiaoxiu.json'
 ];
 
 self.addEventListener('install', event => {
@@ -29,8 +31,18 @@ self.addEventListener('activate', event => {
 
 // 核心：先读缓存（秒开），再后台更新
 self.addEventListener('fetch', event => {
-    // 只拦截同源请求，避免缓存外部资源
-    if (!event.request.url.startsWith(self.location.origin)) {
+    // 只拦截同源的核心资源请求
+    const url = event.request.url;
+    
+    // 判断是否是需要缓存的核心资源
+    const isCoreResource = 
+        url.endsWith('/') ||
+        url.endsWith('index.html') ||
+        url.endsWith('lunar.js') ||
+        url.endsWith('tiaoxiu.json');
+    
+    if (!isCoreResource) {
+        // 非核心资源（如图标、API等）直接走网络
         return;
     }
     
@@ -50,7 +62,7 @@ self.addEventListener('fetch', event => {
                 return cachedResponse;
             });
             
-            // 关键：有缓存立即返回，无缓存才等待网络
+            // 关键：有缓存立即返回（毫秒级），无缓存才等待网络
             return cachedResponse || fetchPromise;
         })
     );
