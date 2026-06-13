@@ -1,11 +1,11 @@
 // sw.js - Cache First + 后台静默更新（秒开）
-const CACHE_VERSION = 'v1.6.1';  // 版本号，更新时修改这里
+const CACHE_VERSION = 'v1.0.2';
 const CACHE_NAME = `jiaban-${CACHE_VERSION}`;
 const urlsToCache = [
     './',
     './index.html',
     './lunar.js',
-    './tiaoxiu.json'
+    './tiaoxiu.js'
 ];
 
 self.addEventListener('install', event => {
