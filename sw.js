@@ -1,5 +1,6 @@
 // sw.js - Cache First + 后台静默更新（秒开）
-const CACHE_NAME = 'jiaban-v11';
+const CACHE_VERSION = 'v1.0.1';  // 版本号，更新时修改这里
+const CACHE_NAME = `jiaban-${CACHE_VERSION}`;
 const urlsToCache = [
     './',
     './index.html',
@@ -30,7 +31,6 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request).then(cachedResponse => {
-            // 有缓存：立即返回（秒开）
             if (cachedResponse) {
                 // 后台静默更新缓存
                 fetch(event.request).then(networkResponse => {
