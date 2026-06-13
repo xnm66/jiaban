@@ -1,5 +1,5 @@
-// sw.js - 恢复秒开 + 后台更新
-const CACHE_NAME = 'jiaban-v9';
+// sw.js - 秒开 + 后台静默更新
+const CACHE_NAME = 'jiaban-v2';
 const urlsToCache = [
     './',
     './index.html',
@@ -26,12 +26,11 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    // 不做任何过滤，全部拦截
     event.respondWith(
         caches.match(event.request).then(cachedResponse => {
-            // 有缓存：立即返回（秒开）
             if (cachedResponse) {
-                // 后台静默更新
+                // 有缓存：立即返回（秒开）
+                // 后台静默更新，下次打开就是最新的
                 fetch(event.request).then(networkResponse => {
                     if (networkResponse && networkResponse.status === 200) {
                         caches.open(CACHE_NAME).then(cache => {
