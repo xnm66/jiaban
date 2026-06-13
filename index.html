@@ -1759,7 +1759,7 @@
         navigator.serviceWorker.register('./sw.js');
     }
     
-    // ==================== 完整 JavaScript 代码 ====================
+    // ==================== 全局变量 ====================
     let records = [], payType = "formal", currentYear = 2026, currentMonth = 5, selectedDate = null;
     let cellRotateTimers = new Map(), cellRotateIndex = new Map();
     let lockedShift = localStorage.getItem("lockedShift") || null;
@@ -1794,7 +1794,8 @@
     
     let isLoading = true;
     
-    // 获取并显示版本号 - 直接从 Service Worker 缓存名称获取
+    // tiaoxiuData 由 tiaoxiu.js 提供全局变量
+    // 获取版本号
     async function updateAppVersion() {
         try {
             if ('caches' in window) {
@@ -1807,7 +1808,6 @@
                     return;
                 }
             }
-            // 降级：从 localStorage 读取上次记录的版本
             const savedVersion = localStorage.getItem('appVersion');
             if (savedVersion && savedVersion !== '获取中...') {
                 document.getElementById('appVersion').innerText = savedVersion;
@@ -3083,11 +3083,17 @@
     
     function stopAllRotate() { for (let [div, timer] of cellRotateTimers) clearInterval(timer); cellRotateTimers.clear(); cellRotateIndex.clear(); }
     
+    // 修复 getTiaoxiu 函数 - 直接从全局变量读取
     function getTiaoxiu(year, dateStr) {
-        if (!window.tiaoxiuData || !window.tiaoxiuData[year]) return { isFangjia: false, isJiaban: false };
+        if (typeof tiaoxiuData === 'undefined') {
+            return { isFangjia: false, isJiaban: false };
+        }
+        if (!tiaoxiuData[year]) {
+            return { isFangjia: false, isJiaban: false };
+        }
         return {
-            isFangjia: window.tiaoxiuData[year].fangjia?.includes(dateStr) || false,
-            isJiaban: window.tiaoxiuData[year].jiaban?.includes(dateStr) || false
+            isFangjia: tiaoxiuData[year].fangjia?.includes(dateStr) || false,
+            isJiaban: tiaoxiuData[year].jiaban?.includes(dateStr) || false
         };
     }
     
@@ -4163,10 +4169,10 @@
         selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         loadDataForCurrentMonth();
         
-        // 等待 lunar.js 和 tiaoxiu.js 加载完成（它们通过 script 标签同步加载，实际不需要 await）
+        // 等待 lunar.js 加载完成（tiaoxiu.js 已通过 script 标签同步加载，不需要等待）
         await waitForLunar();
         
-        // 渲染日历
+        // 直接渲染日历
         renderCalendar();
         renderBottom();
         
