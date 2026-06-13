@@ -74,7 +74,6 @@
 			color: rgba(255,255,255,0.8);
 		}
 		
-		/* 模式标签 - 右下角小胶囊 */
 		.mode-badge {
 			position: absolute;
 			bottom: 5px;
@@ -139,7 +138,7 @@
 			display: flex; 
 			justify-content: space-evenly; 
 			background: #fff; 
-			padding: 8px 0; 
+			padding: 8px 4px; 
 		}
 		.weekday { 
 			font-size: 0.7rem; 
@@ -149,10 +148,14 @@
 			text-align: center; 
 		}
 		
+		/* 修复日历网格溢出问题 */
 		.cal-grid { 
 			display: grid; 
-			grid-template-columns: repeat(7, 1fr);
+			grid-template-columns: repeat(7, minmax(0, 1fr));
+			gap: 2px;
 			background: #fff;
+			width: 100%;
+			overflow: hidden;
 		}
 		.cal-day { 
 			aspect-ratio: 1 / 1;
@@ -163,9 +166,9 @@
 			cursor: pointer; 
 			position: relative; 
 			border-radius: 8px; 
-			margin: 2px; 
 			background: #fff; 
 			transition: all 0.1s;
+			min-width: 0;
 		}
 		.cal-day:active { transform: scale(0.96); background: #f0f2f5; }
 		.cal-day.empty { background: transparent; cursor: default; }
@@ -191,7 +194,6 @@
 			display: inline-block; 
 		}
 		
-		/* 备注圆点 - 绿色，无白圈，位置往内缩 */
 		.remark-dot {
 			position: absolute;
 			top: 6px;
@@ -763,7 +765,6 @@
 		.drawer-buttons button:active { transform: scale(0.96); }
 		.save-drawer { background: #66b3ff; color: white; }
 		
-		/* 备注弹窗样式 */
 		.remark-modal-mask {
 			position: fixed;
 			top: 0;
@@ -1387,7 +1388,6 @@
 			padding: 0 16px 14px 16px;
 		}
 		
-		/* 居中占位符样式 */
 		.calendar-placeholder {
 			text-align: center;
 			padding: 60px 20px;
@@ -1398,8 +1398,7 @@
 			justify-content: center;
 			align-items: center;
 			min-height: 300px;
-			background: #fff;  /* 添加白色背景 */
-			
+			background: #fff;
 		}
 		
 		.edit-form-container {
@@ -1504,7 +1503,6 @@
 
 <button class="today-fab" id="todayFab">今</button>
 
-<!-- 备注弹窗 -->
 <div id="remarkModal" class="remark-modal-mask">
 	<div class="remark-modal-card">
 		<div class="remark-modal-header">
@@ -1759,7 +1757,8 @@
 	let swapDates = [];
 	let swapHours = [0, 0];
 	
-	let salaryDisplayMode = 'prorated';
+	// 薪资模式切换 - 从localStorage读取，默认为'prorated'（按出勤算）
+	let salaryDisplayMode = localStorage.getItem("salaryDisplayMode") || 'prorated';
 	
 	let settingsViewYear = null;
 	let settingsViewMonth = null;
@@ -3090,7 +3089,9 @@
 			isMultiSelectMode = false;
 			selectedDatesSet.clear();
 			showYearStats = false;
+			// 重置薪资模式为按出勤算，但不保存到localStorage，因为这是用户主动清除数据
 			salaryDisplayMode = 'prorated';
+			localStorage.removeItem("salaryDisplayMode");
 			document.getElementById("modeBadge").innerHTML = "按出勤算";
 			
 			saveAllMonthlyData();
@@ -3105,6 +3106,7 @@
 		});
 	}
 	
+	// 修改调班弹窗 - 步骤1: 取消 + 下一步
 	function showSwapStep1() {
 		let dates = Array.from(selectedDatesSet);
 		let workdayDate = isWorkday(dates[0]) ? dates[0] : dates[1];
@@ -3174,6 +3176,7 @@
 		document.getElementById("swapCancelBtn").onclick = () => modal.remove();
 	}
 	
+	// 修改调班弹窗 - 步骤2: 上一步 + 确认调班
 	function showSwapStep2() {
 		let weekendDate = swapDates[1];
 		let weekendRec = getDayRecords(weekendDate)[0];
@@ -3198,7 +3201,7 @@
 					</div>
 				</div>
 				<div class="unified-buttons">
-					<button class="unified-cancel" id="swapCancelBtn">取消</button>
+					<button class="unified-cancel" id="swapPrevBtn">上一步</button>
 					<button class="unified-confirm" id="swapConfirmBtn">确认调班</button>
 				</div>
 			</div>
@@ -3232,12 +3235,16 @@
 			hourInput.value = val.toFixed(1);
 			swapHours[1] = val;
 		};
+		document.getElementById("swapPrevBtn").onclick = () => { 
+			hourInput.blur();
+			modal.remove(); 
+			showSwapStep1(); 
+		};
 		document.getElementById("swapConfirmBtn").onclick = () => { 
 			hourInput.blur();
 			modal.remove(); 
 			confirmSwapShift(); 
 		};
-		document.getElementById("swapCancelBtn").onclick = () => modal.remove();
 	}
 	
 	function confirmSwapShift() {
@@ -3522,7 +3529,7 @@
 			grid.appendChild(dayDiv); 
 		} 
 		let monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']; 
-		document.getElementById("currentMonthLabel").innerText = `${currentYear}年 ${monthNames[currentMonth]}`; 
+		document.getElementById("currentMonthLabel").innerHTML = `${currentYear}年 ${monthNames[currentMonth]}`; 
 		updateStats(); 
 		updateTodayButton(); 
 		saveBackup();
@@ -3731,7 +3738,7 @@
 		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
 		if (!hasSalaryConfig) { showToast("请先在设置页面中设置薪资方式"); return; }
 		let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
-		document.getElementById("drawerDateTitle").innerText = `${year}年${month}月${day}日`; 
+		document.getElementById("drawerDateTitle").innerHTML = `${year}年${month}月${day}日`; 
 		let existing = getDayRecords(selectedDate)[0]; 
 		let tiaoxiu = getTiaoxiu(currentYear, selectedDate); 
 		if (existing) { 
@@ -3856,8 +3863,11 @@
 		container.addEventListener("touchend",(e)=>{ if (!swipeEnabled) return; touchEndX=e.changedTouches[0].screenX; if(touchEndX-touchStartX>50){ currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } else if(touchStartX-touchEndX>50){ currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } }); 
 	}
 	
+	// 切换薪资模式 - 保存到localStorage
 	function toggleSalaryMode() {
 		salaryDisplayMode = salaryDisplayMode === 'prorated' ? 'full' : 'prorated';
+		// 保存到localStorage，刷新后保持
+		localStorage.setItem("salaryDisplayMode", salaryDisplayMode);
 		let modeText = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
 		document.getElementById("modeBadge").innerHTML = modeText;
 		showToast(`✨ 已切换「${modeText}」模式 ✨`);
@@ -4094,6 +4104,11 @@
 	}
 	
 	async function init() {
+		// 先读取保存的薪资模式状态，确保初始加载时就有正确的显示
+		salaryDisplayMode = localStorage.getItem("salaryDisplayMode") || 'prorated';
+		let modeText = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+		document.getElementById("modeBadge").innerHTML = modeText;
+		
 		document.getElementById("calendarGrid").style.display = "none";
 		document.getElementById("calendarLoading").style.display = "flex";
 		document.getElementById("calendarLoading").innerHTML = "加载中，请稍后...";
@@ -4188,6 +4203,7 @@
 		
 		let displayName = (currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") ? currentSalaryMethodName : "暂未设置计薪方式";
 		document.getElementById("salaryMethodDisplay").innerText = displayName;
+		// 确保modeBadge显示正确的模式
 		document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
 		
 		switchPage("calendar");
