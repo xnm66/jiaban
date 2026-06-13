@@ -543,9 +543,9 @@
         .add-link-btn:active { background: #f5f7fa; }
         
         .today-fab { 
-            position: fixed; 
-            bottom: 150px; 
-            right: calc(50% - 250px + 16px);
+            position: fixed;
+            bottom: 160px;
+            right: max(16px, calc((100% - 500px) / 2 + 16px));
             width: 48px; 
             height: 48px; 
             background: #66b3ff; 
@@ -560,10 +560,10 @@
             justify-content: center; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.15); 
             z-index: 99;
+            transition: all 0.1s ease;
         }
         .today-fab:active { transform: scale(0.92); }
         .today-fab.hide { display: none; }
-        @media (max-width: 500px) { .today-fab { right: 16px; } }
         
         .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #2c3e50; color: #fff; padding: 6px 16px; border-radius: 25px; font-size: 0.7rem; z-index: 1200; display: none; white-space: nowrap; }
         
@@ -588,6 +588,7 @@
             box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
             font-size: 0.7rem;
             color: #606266;
+            min-height: 48px;
         }
         .version-label {
             font-weight: 600;
@@ -1437,6 +1438,7 @@
         }
     </style>
     <script src="./lunar.js"></script>
+    <script src="./tiaoxiu.js"></script>
 </head>
 <body>
 <div class="container">
@@ -1792,22 +1794,25 @@
     
     let isLoading = true;
     
-    // 获取并显示版本号
+    // 获取并显示版本号 - 直接从 Service Worker 缓存名称获取
     async function updateAppVersion() {
         try {
-            const cacheNames = await caches.keys();
-            const jiabanCache = cacheNames.find(name => name.startsWith('jiaban-'));
-            if (jiabanCache) {
-                const version = jiabanCache.replace('jiaban-', '');
-                document.getElementById('appVersion').innerText = version;
-                localStorage.setItem('appVersion', version);
-            } else {
-                const savedVersion = localStorage.getItem('appVersion');
-                if (savedVersion) {
-                    document.getElementById('appVersion').innerText = savedVersion;
-                } else {
-                    document.getElementById('appVersion').innerText = 'v1.0.0';
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                const jiabanCache = cacheNames.find(name => name.startsWith('jiaban-'));
+                if (jiabanCache) {
+                    const version = jiabanCache.replace('jiaban-', '');
+                    document.getElementById('appVersion').innerText = version;
+                    localStorage.setItem('appVersion', version);
+                    return;
                 }
+            }
+            // 降级：从 localStorage 读取上次记录的版本
+            const savedVersion = localStorage.getItem('appVersion');
+            if (savedVersion && savedVersion !== '获取中...') {
+                document.getElementById('appVersion').innerText = savedVersion;
+            } else {
+                document.getElementById('appVersion').innerText = 'v1.0.0';
             }
         } catch(e) {
             document.getElementById('appVersion').innerText = 'v1.0.0';
@@ -3078,6 +3083,14 @@
     
     function stopAllRotate() { for (let [div, timer] of cellRotateTimers) clearInterval(timer); cellRotateTimers.clear(); cellRotateIndex.clear(); }
     
+    function getTiaoxiu(year, dateStr) {
+        if (!window.tiaoxiuData || !window.tiaoxiuData[year]) return { isFangjia: false, isJiaban: false };
+        return {
+            isFangjia: window.tiaoxiuData[year].fangjia?.includes(dateStr) || false,
+            isJiaban: window.tiaoxiuData[year].jiaban?.includes(dateStr) || false
+        };
+    }
+    
     function isWorkday(dateStr) {
         let [year, month, day] = dateStr.split('-').map(Number);
         let tiaoxiu = getTiaoxiu(year, dateStr);
@@ -4014,16 +4027,7 @@
     function getSpringFestivalDays(year) { if (typeof Lunar === 'undefined') return []; try { const lunar = Lunar.fromYmd(year, 1, 1); const solar = lunar.getSolar(); const startDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay()); const days = []; for (let i = 0; i < 4; i++) { const d = new Date(startDate); d.setDate(startDate.getDate() + i); days.push(`${d.getMonth()+1}-${d.getDate()}`); } return days; } catch(e) { return []; } }
     function isStatutoryHoliday(year, month, day) { const key = `${month}-${day}`; if (FIXED_STATUTORY_HOLIDAYS[key]) return true; const springDays = getSpringFestivalDays(year); if (springDays.includes(key)) return true; return false; }
     function waitForLunar() { return new Promise((resolve) => { if (typeof Lunar !== 'undefined') resolve(); else { let interval = setInterval(() => { if (typeof Lunar !== 'undefined') { clearInterval(interval); resolve(); } }, 100); setTimeout(() => { clearInterval(interval); resolve(); }, 3000); } }); }
-    let tiaoxiuData = {}; async function loadTiaoxiu() { 
-        try { 
-            const response = await fetch('./tiaoxiu.json'); 
-            tiaoxiuData = await response.json(); 
-        } catch(e) { 
-            console.log('加载调班数据失败，使用默认配置'); 
-            tiaoxiuData = {}; 
-        } 
-    }
-    function getTiaoxiu(year, dateStr) { if (!tiaoxiuData[year]) return { isFangjia: false, isJiaban: false }; return { isFangjia: tiaoxiuData[year].fangjia?.includes(dateStr) || false, isJiaban: tiaoxiuData[year].jiaban?.includes(dateStr) || false }; }
+    
     function getLunarInfo(year, month, day) { try { if (typeof Lunar === 'undefined') return { lunarStr: "加载中", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; const date = new Date(year, month-1, day); const lunar = Lunar.fromDate(date); const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']; const festivals = [...new Set([...lunar.getFestivals(), ...lunar.getSolar().getFestivals()])]; return { lunarStr: `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`, jieqi: lunar.getJieQi() || '', festivals, isStatutory: isStatutoryHoliday(year, month, day), weekday: weekdays[date.getDay()] }; } catch(e) { return { lunarStr: "", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; } }
     function getCellDisplayList(festivals, jieqi, lunarDay) { let list = []; for (let f of festivals) if (f && f.length <= 4) list.push(f); if (jieqi && jieqi.length <= 4 && !list.includes(jieqi)) list.push(jieqi); if (list.length === 0 && lunarDay && lunarDay.length <= 4) list.push(lunarDay); return [...new Set(list)]; }
     function getBottomDisplayText(festivals, lunarStr, weekday) { return festivals.length ? festivals[0] : `${lunarStr} · ${weekday}`; }
@@ -4149,7 +4153,7 @@
         salaryDisplayMode = localStorage.getItem("salaryDisplayMode") || 'prorated';
         document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
         
-        // 加载本地数据
+        // 加载本地数据（同步）
         loadAllMonthlyData();
         let raw = localStorage.getItem("overtime_final");
         if (raw) { try { let d = JSON.parse(raw); records = d.records || []; payType = d.payType || "formal"; } catch(e) {} }
@@ -4159,7 +4163,10 @@
         selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         loadDataForCurrentMonth();
         
-        // 直接渲染日历（不等待任何异步）
+        // 等待 lunar.js 和 tiaoxiu.js 加载完成（它们通过 script 标签同步加载，实际不需要 await）
+        await waitForLunar();
+        
+        // 渲染日历
         renderCalendar();
         renderBottom();
         
