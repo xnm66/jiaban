@@ -757,16 +757,21 @@
         .type-nav { display: flex; gap: 0; background: #fff; padding: 4px; border-bottom: 1px solid #f0f0f0; }
         .type-nav-item { flex: 1; text-align: center; padding: 10px 0; font-size: 0.7rem; font-weight: 500; color: #606266; cursor: pointer; border-radius: 8px; background: #fff; }
         .type-nav-item.active { background: #66b3ff; color: white; }
-        .type-nav-item.disabled { background: #e0e0e0; color: #999; cursor: not-allowed; opacity: 0.6; }
-        .type-nav-item.disabled:active { transform: none; background: #e0e0e0; }
-        .smart-match-hint {
+        .type-nav.hide-buttons .type-nav-item {
+            display: none;
+        }
+        .type-nav.hide-buttons {
+            justify-content: center;
+            padding: 12px 0;
+        }
+        .smart-match-hint-full {
             background: #fff7e6;
             border-radius: 8px;
-            padding: 6px 10px;
-            margin-bottom: 8px;
-            font-size: 0.6rem;
+            padding: 10px 12px;
+            font-size: 0.7rem;
             color: #fa8c16;
             text-align: center;
+            width: 100%;
         }
         .time-control-wrapper { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px 10px; }
         .time-label { font-size: 0.68rem; color: #606266; }
@@ -1478,8 +1483,8 @@
     <div id="calendarPage" class="page active-page">
         <div id="statsBarContainer" class="stats-bar" style="display: flex;">
             <div class="stat-item" id="statOvertimeCard"><div class="stat-value"><strong id="totalOvertime">0</strong><span class="stat-unit">小时</span></div><div class="stat-label">加班时长</div></div>
-            <div class="stat-item" id="statIncomeCard" style="position:relative;"><div class="stat-value"><strong id="monthIncome">0</strong><span class="stat-unit">元</span></div><div class="stat-label" id="monthLabel">6月工资</div><div class="mode-badge" id="modeBadge">按出勤算</div></div>
-            <div class="stat-item" id="statAttendanceCard"><div class="stat-value"><strong id="attendanceDays">0</strong><span class="stat-unit">天</span></div><div class="stat-label">出勤天数</div></div>
+            <div class="stat-item" id="statIncomeCard" style="position:relative;"><div class="stat-value"><strong id="monthIncome">0</strong><span class="stat-unit">元</span></div><div class="stat-label" id="monthLabel">6月工资</div><div class="mode-badge" id="modeBadge">按天计算</div></div>
+            <div class="stat-item" id="statAttendanceCard"><div class="stat-value"><strong id="attendanceDays">0</strong><span class="stat-unit">天</span></div><div class="stat-label">上班天数</div></div>
         </div>
         <div class="calendar-card">
             <div class="title-bar"><div class="mini-title">📅 记加班<span class="small-text"> · 不错过每一份努力</span></div><div class="month-nav"><button class="month-nav-btn" id="prevMonth">‹</button><span class="current-month" id="currentMonthLabel">2026年6月</span><button class="month-nav-btn" id="nextMonth">›</button></div></div>
@@ -1608,7 +1613,7 @@
                 <p>• <span class="highlight">点击顶部横条</span>：查看工时/薪资/考勤详情</p>
                 <p>• <span class="highlight">顶部导航</span>：左右滑动或点击月份切换月份</p>
                 <p>• <span class="highlight">点击底部「今」按钮</span>：快速回到今天</p>
-                <p>• <span class="highlight">长按工资区域</span>：切换「按出勤算」/「按月发薪」模式</p>
+                <p>• <span class="highlight">长按工资区域</span>：切换「按天计算」/「固定底薪」模式</p>
                 <p>• <span class="highlight">双击有绿色圆点的日期</span>：查看备注内容</p>
             </div>
         </div>
@@ -1657,7 +1662,7 @@
             <div class="help-section-title">📊 年度汇总说明</div>
             <div class="help-content">
                 <p>• 在设置页面<span class="highlight">长按收入卡片</span>可切换到年度汇总</p>
-                <p>• 年度汇总会<span class="highlight">实时计算</span>全年总收入、加班时长、出勤天数等</p>
+                <p>• 年度汇总会<span class="highlight">实时计算</span>全年总收入、加班时长、上班天数等</p>
                 <p>• 补贴和扣款会<span class="highlight">自动累加</span>到年度总收入中</p>
                 <p>• 修改任何月份的补贴/扣款后，年度汇总<span class="highlight">立即更新</span></p>
             </div>
@@ -1684,8 +1689,12 @@
         <div class="overtime-section">
             <div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div>
             <div class="overtime-card">
-                <div id="smartMatchHint" class="smart-match-hint" style="display: none;">🤖 智能匹配模式（将根据日期类型自动选择加班类型）</div>
-                <div class="type-nav" id="typeNav"><div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div></div>
+                <div class="type-nav" id="typeNav">
+                    <div class="type-nav-item" data-type="workday">正常班</div>
+                    <div class="type-nav-item" data-type="weekend">周末</div>
+                    <div class="type-nav-item" data-type="holiday">节假日</div>
+                    <div class="type-nav-item" data-type="salary">日结</div>
+                </div>
                 <div class="time-control-wrapper" id="timeControlWrapper"><span class="time-label" id="timeLabel">加班时长</span><div class="time-control" id="timeControl"><div class="time-btn-circle" id="timeMinusBtn">−</div><input type="text" id="timeInput" class="time-input" value="0.0" inputmode="decimal" pattern="[0-9]*\.?[0-9]*"><div class="time-btn-circle" id="timePlusBtn">+</div><div class="amount-input-wrapper" id="amountInputWrapper" style="display: none;"><span>¥</span><input type="text" id="amountInput" placeholder="金额" value=""></div></div></div>
             </div></div>
         </div>
@@ -1858,7 +1867,7 @@
     
     // 批量模式类型统计
     let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
-    let batchTypeMode = "auto"; // "workday", "weekend", "holiday", "mixed"
+    let batchTypeMode = "auto";
     
     // tiaoxiuData 由 tiaoxiu.js 提供全局变量
     // 获取版本号
@@ -1885,11 +1894,10 @@
         }
     }
     
-    // 点击版本卡片强制更新缓存 - 优化版
+    // 点击版本卡片强制更新缓存
     async function forceUpdateCache() {
         showToast("🔄 正在检查更新...");
         try {
-            // 方法1: 清除所有缓存
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
                 for (const cacheName of cacheNames) {
@@ -1898,7 +1906,6 @@
                 console.log('所有缓存已清除');
             }
             
-            // 方法2: 强制更新 Service Worker
             if ('serviceWorker' in navigator) {
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (const registration of registrations) {
@@ -1911,7 +1918,7 @@
             
             showToast("✅ 更新成功，即将刷新页面");
             setTimeout(() => {
-                window.location.reload(true); // 强制从服务器重新加载
+                window.location.reload(true);
             }, 500);
             
         } catch(e) {
@@ -2028,19 +2035,18 @@
         if (value === undefined || value === null) return '0';
         let num = parseFloat(value);
         if (isNaN(num)) return '0';
-        if (Number.isInteger(num)) return num.toString();
-        return num.toFixed(2).replace(/\.?0+$/, '');
+        return Math.round(num).toString();
     }
     
     function z_getAutoDays() { let days = 0; for (let r of records) { let [y,m] = r.date.split('-'); if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "晚班") days++; } return days; }
     
-    function z_getAutoHoursForDed() {
+    function z_getAutoHoursForDed(typeName) {
         let hours = 0;
         for (let r of records) {
             let [y,m] = r.date.split('-');
             if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "休息") {
-                if (z_selectedType === '事假扣款' && r.type === "personal") hours += r.hours || 0;
-                if (z_selectedType === '病假扣款' && r.type === "sick") hours += r.hours || 0;
+                if (typeName === '事假扣款' && r.type === "personal") hours += r.hours || 0;
+                if (typeName === '病假扣款' && r.type === "sick") hours += r.hours || 0;
             }
         }
         return hours;
@@ -2075,17 +2081,40 @@
     function z_escape(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
     function z_showToast(msg) { showToast(msg); }
     
-    function getCurrentMonthAttendanceDays() {
+    // 获取工作日出勤天数（用于底薪计算）- 事假/病假算作出勤
+    function getWorkdayAttendanceForSalary() {
         let days = 0;
         let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
         let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
-        let attendanceDates = new Set();
         for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
-                attendanceDates.add(r.date);
+            if (r.date >= monthStart && r.date <= monthEnd) {
+                let recDate = new Date(r.date);
+                let dayOfWeek = recDate.getDay();
+                let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                let isHoliday = isStatutoryHoliday(currentYear, recDate.getMonth() + 1, recDate.getDate());
+                let isWorkday = !isWeekend && !isHoliday;
+                if (isWorkday && r.shift !== "休息") {
+                    days++;
+                } else if (isWorkday && r.shift === "休息" && (r.type === "personal" || r.type === "sick")) {
+                    // 事假/病假算作出勤（用于底薪计算）
+                    days++;
+                }
             }
         }
-        return attendanceDates.size;
+        return days;
+    }
+    
+    // 获取实际上班天数（用于显示）- 事假/病假不算
+    function getActualWorkdays() {
+        let days = 0;
+        let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
+        let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
+        for (let r of records) {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+                days++;
+            }
+        }
+        return days;
     }
     
     function getMonthWorkdayCount(year, month) {
@@ -2128,21 +2157,44 @@
             }
         }
         if (hasWorkdayPersonalOrSickLeave()) return 0;
-        return dailyRate * attendedWorkdays;
+        return Math.round(dailyRate * attendedWorkdays);
     }
     
     function recalcDayBasedAllowances() {
-        let attendanceDays = getCurrentMonthAttendanceDays();
+        let attendanceDays = getActualWorkdays();
         let nightDays = z_getAutoDays();
+        
         for (let i = 0; i < settingsAllowances.length; i++) {
             let item = settingsAllowances[i];
-            if (item.name === '全勤奖') { item.amount = computeFullAttendanceAmount(item); continue; }
+            if (item.name === '全勤奖') { 
+                item.amount = computeFullAttendanceAmount(item); 
+                continue; 
+            }
             if (item.calcType === 'day') {
                 let dailyRate = item.dayPrice || 0, usedDays = 0;
                 if (item.autoDays === true) usedDays = (item.name === '夜班补贴') ? nightDays : attendanceDays;
                 else usedDays = Math.min(attendanceDays, item.dayCount || 0);
                 item.currentDays = usedDays;
-                item.amount = dailyRate * usedDays;
+                item.amount = Math.round(dailyRate * usedDays);
+            }
+        }
+        
+        // 重新计算事假/病假扣款金额
+        for (let i = 0; i < settingsDeductions.length; i++) {
+            let item = settingsDeductions[i];
+            if (item.name === '事假扣款' || item.name === '病假扣款') {
+                let hours = item.autoHours ? z_getAutoHoursForDed(item.name) : (item.hours || 0);
+                item.hours = hours;
+                
+                if (item.leaveSubType === 'fixed') {
+                    let hr = item.hourlyRate || 0;
+                    item.amount = Math.round(hr * hours);
+                } else {
+                    let p = item.percent || 0;
+                    let hr = z_getHourly() * p / 100;
+                    item.amount = Math.round(hr * hours);
+                    item.hourlyRate = hr;
+                }
             }
         }
     }
@@ -2167,7 +2219,6 @@
         document.getElementById('z_delModal').style.display = 'flex';
     }
     
-    // 渲染补贴/扣款项，支持收起展开
     function renderSettingsAllowancesDeductions() {
         recalcDayBasedAllowances();
         let subTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
@@ -2377,7 +2428,7 @@
         } else {
             document.getElementById('z_dayCountLabel').innerHTML = `自动获取${name}天数`;
             document.getElementById('z_manualDayLabel').innerHTML = `${name}天数`;
-            document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getCurrentMonthAttendanceDays()}天）`;
+            document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getActualWorkdays()}天）`;
         }
     }
     
@@ -2436,14 +2487,7 @@
             document.getElementById('z_autoHourModeArea').style.display = 'flex';
             document.getElementById('z_manualHourModeArea').style.display = 'none';
             document.getElementById('z_hourToggle').classList.add('z_active');
-            let hours = 0;
-            for (let r of records) {
-                let [y,m] = r.date.split('-');
-                if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "休息") {
-                    if (z_selectedType === '事假扣款' && r.type === "personal") hours += r.hours || 0;
-                    if (z_selectedType === '病假扣款' && r.type === "sick") hours += r.hours || 0;
-                }
-            }
+            let hours = z_getAutoHoursForDed(z_selectedType);
             document.getElementById('z_autoHourHint').innerHTML = `从记加班自动获取时长（${hours}小时）`;
         } else {
             document.getElementById('z_autoHourModeArea').style.display = 'none';
@@ -2474,7 +2518,7 @@
                 document.getElementById('z_autoModeArea').style.display = 'flex';
                 document.getElementById('z_manualModeArea').style.display = 'none';
                 document.getElementById('z_dayToggle').classList.add('z_active');
-                document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getCurrentMonthAttendanceDays()}天）`;
+                document.getElementById('z_autoDaysHint').innerHTML = `从记加班自动获取出勤天数（${getActualWorkdays()}天）`;
             } else {
                 document.getElementById('z_autoModeArea').style.display = 'none';
                 document.getElementById('z_manualModeArea').style.display = 'flex';
@@ -2585,10 +2629,10 @@
             dayPrice = parseFloat(document.getElementById('z_subDayPrice').value) || 0;
             if (z_dayAuto) dayCount = 0;
             else dayCount = parseFloat(document.getElementById('z_subDayCount').value) || 0;
-            amount = dayPrice * Math.min(getCurrentMonthAttendanceDays(), dayCount > 0 ? dayCount : Infinity);
+            amount = dayPrice * Math.min(getActualWorkdays(), dayCount > 0 ? dayCount : Infinity);
         }
         let customName = (!z_subsidyOpts.includes(finalName) && finalName !== '全勤奖') ? finalName : (z_selectedType === '其它项目' ? custom : undefined);
-        let newItem = { name: finalName, amount: amount, calcType: z_calcType, dayPrice: dayPrice, dayCount: dayCount, autoDays: z_dayAuto, customName: customName, currentDays: 0 };
+        let newItem = { name: finalName, amount: Math.round(amount), calcType: z_calcType, dayPrice: dayPrice, dayCount: dayCount, autoDays: z_dayAuto, customName: customName, currentDays: 0 };
         if (z_editTarget) settingsAllowances[z_editTarget.index] = newItem;
         else settingsAllowances.push(newItem);
         z_saveSubDed(); z_closeSubPage();
@@ -2700,7 +2744,7 @@
         if (!isSocialOrFund && z_leaveDeds.includes(finalName)) {
             newItem.leaveSubType = z_leaveSubType;
             newItem.autoHours = z_hourAuto;
-            let hours = z_hourAuto ? z_getAutoHoursForDed() : (parseFloat(document.getElementById('z_dedHours').value) || 0);
+            let hours = z_hourAuto ? z_getAutoHoursForDed(finalName) : (parseFloat(document.getElementById('z_dedHours').value) || 0);
             newItem.hours = hours;
             if (z_leaveSubType === 'fixed') {
                 let hr = parseFloat(document.getElementById('z_dedAmount').value) || 0;
@@ -2713,10 +2757,10 @@
                 newItem.hourlyRate = hr;
                 newItem.percent = p;
             }
-            newItem.amount = amount;
+            newItem.amount = Math.round(amount);
         } else {
             amount = parseFloat(document.getElementById('z_dedAmount').value) || 0;
-            newItem.amount = amount;
+            newItem.amount = Math.round(amount);
         }
         if (z_editTarget) settingsDeductions[z_editTarget.index] = newItem;
         else settingsDeductions.push(newItem);
@@ -2787,13 +2831,18 @@
             if (salaryDisplayMode === 'full') {
                 monthlyBasePay = monthBaseSalary;
             } else {
-                if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
-                    monthlyBasePay = (monthBaseSalary / monthWorkdayCount) * actualAttendanceDays;
-                } else if (actualAttendanceDays > 0) {
-                    monthlyBasePay = monthBaseSalary;
-                } else {
-                    monthlyBasePay = 0;
+                let workdayAttend = 0;
+                for (let r of monthRecords) {
+                    if (r.shift !== "休息") {
+                        let recDate = new Date(r.date);
+                        let dayOfWeek = recDate.getDay();
+                        let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                        let isHoliday = isStatutoryHoliday(currentYearNum, recDate.getMonth() + 1, recDate.getDate());
+                        let isWorkday = !isWeekend && !isHoliday;
+                        if (isWorkday) workdayAttend++;
+                    }
                 }
+                monthlyBasePay = monthWorkdayCount > 0 ? Math.round((monthBaseSalary / monthWorkdayCount) * workdayAttend) : 0;
             }
             
             totalIncome += monthlyBasePay + overtimePay + salaryIncome;
@@ -2822,7 +2871,7 @@
                 <div class="year-stats-grid">
                     <div class="year-stat-item"><span class="year-stat-value">${formatMoney(stats.totalIncome)}</span><span class="year-stat-label">总收入</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.totalOvertimeHours.toFixed(1)}</span><span class="year-stat-label">总加班</span></div>
-                    <div class="year-stat-item"><span class="year-stat-value">${stats.attendanceDays}</span><span class="year-stat-label">出勤天数</span></div>
+                    <div class="year-stat-item"><span class="year-stat-value">${stats.attendanceDays}</span><span class="year-stat-label">上班天数</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.dayDays}</span><span class="year-stat-label">白班天数</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.nightDays}</span><span class="year-stat-label">夜班天数</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.leaveDays}</span><span class="year-stat-label">请假天数</span></div>
@@ -2910,23 +2959,27 @@
             return parseInt(y) === year && parseInt(m) - 1 === month;
         });
         
-        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0;
+        let workdayAttendCount = 0;
+        
         for (let r of monthRecords) {
             if (r.type === "workday") normalH += r.hours || 0;
             else if (r.type === "weekend") weekendH += r.hours || 0;
             else if (r.type === "holiday") holidayH += r.hours || 0;
             else if (r.type === "salary") salaryIncome += r.amount || 0;
-            if (r.shift !== "休息" && r.type !== "salary") attendanceSet.add(r.date);
+            
+            if (r.shift !== "休息" && r.type !== "salary") {
+                let recDate = new Date(r.date);
+                let dayOfWeek = recDate.getDay();
+                let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                let isHoliday = isStatutoryHoliday(year, recDate.getMonth() + 1, recDate.getDate());
+                let isWorkday = !isWeekend && !isHoliday;
+                if (isWorkday) workdayAttendCount++;
+            }
         }
         
-        let actualAttendanceDays = attendanceSet.size;
         let monthWorkdayCount = getMonthWorkdayCount(year, month);
-        let hourlyWage = 0;
-        if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
-            hourlyWage = (monthBaseSalary / monthWorkdayCount / 8);
-        } else {
-            hourlyWage = monthBaseSalary / 21.75 / 8;
-        }
+        let hourlyWage = monthWorkdayCount > 0 ? (monthBaseSalary / monthWorkdayCount / 8) : (monthBaseSalary / 21.75 / 8);
         let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
         
         let allowancesTotal = 0;
@@ -2942,13 +2995,7 @@
         if (salaryDisplayMode === 'full') {
             monthlyBasePay = monthBaseSalary;
         } else {
-            if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
-                monthlyBasePay = (monthBaseSalary / monthWorkdayCount) * actualAttendanceDays;
-            } else if (actualAttendanceDays > 0) {
-                monthlyBasePay = monthBaseSalary;
-            } else {
-                monthlyBasePay = 0;
-            }
+            monthlyBasePay = monthWorkdayCount > 0 ? Math.round((monthBaseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
         }
         
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
@@ -2970,7 +3017,9 @@
     }
     
     function getCurrentMonthStatsForSettings() {
-        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0;
+        let workdayAttendCount = 0;
+        
         for (let r of records) {
             let [y,m] = r.date.split('-');
             if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth) {
@@ -2978,17 +3027,20 @@
                 else if (r.type === "weekend") weekendH += r.hours || 0;
                 else if (r.type === "holiday") holidayH += r.hours || 0;
                 else if (r.type === "salary") salaryIncome += r.amount || 0;
-                if (r.shift !== "休息" && r.type !== "salary") attendanceSet.add(r.date);
+                
+                if (r.shift !== "休息" && r.type !== "salary") {
+                    let recDate = new Date(r.date);
+                    let dayOfWeek = recDate.getDay();
+                    let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                    let isHoliday = isStatutoryHoliday(currentYear, recDate.getMonth() + 1, recDate.getDate());
+                    let isWorkday = !isWeekend && !isHoliday;
+                    if (isWorkday) workdayAttendCount++;
+                }
             }
         }
-        let actualAttendanceDays = attendanceSet.size;
+        
         let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
-        let hourlyWage = 0;
-        if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
-            hourlyWage = (baseSalary / monthWorkdayCount / 8);
-        } else {
-            hourlyWage = baseSalary / 21.75 / 8;
-        }
+        let hourlyWage = monthWorkdayCount > 0 ? (baseSalary / monthWorkdayCount / 8) : (baseSalary / 21.75 / 8);
         let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
         let allowancesTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
         let deductionsTotal = settingsDeductions.reduce((s, d) => s + (d.amount || 0), 0);
@@ -2997,13 +3049,7 @@
         if (salaryDisplayMode === 'full') {
             monthlyBasePay = baseSalary;
         } else {
-            if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
-                monthlyBasePay = (baseSalary / monthWorkdayCount) * actualAttendanceDays;
-            } else if (actualAttendanceDays > 0) {
-                monthlyBasePay = baseSalary;
-            } else {
-                monthlyBasePay = 0;
-            }
+            monthlyBasePay = monthWorkdayCount > 0 ? Math.round((baseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
         }
         
         return { totalSalary: monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal, overtimePay, allowancesTotal, deductionsTotal };
@@ -3014,9 +3060,8 @@
     function showToast(msg){ let t=document.getElementById("toastMsg"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",1500); }
     
     function getHourlyWage() { 
-        let attendanceDays = getCurrentMonthAttendanceDays();
         let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
-        if (monthWorkdayCount > 0 && attendanceDays > 0) {
+        if (monthWorkdayCount > 0) {
             return baseSalary / monthWorkdayCount / 8;
         }
         return baseSalary / 21.75 / 8; 
@@ -3050,10 +3095,11 @@
     }
     
     function getCurrentMonthStats() {
-        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0, attendanceSet = new Set();
+        let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0;
         let vacationHours = 0, personalHours = 0, sickHours = 0, paidHours = 0, restHours = 0;
         let personalDays = 0, sickDays = 0;
         let totalWorkHours = 0;
+        let workdayAttendCount = 0;
         
         for (let r of records) {
             let [y,m] = r.date.split('-');
@@ -3079,13 +3125,19 @@
                     else if (r.type === "paid") paidHours += hoursForDisplay;
                     else restHours += hoursForDisplay;
                 } else {
-                    if (r.type !== "salary") attendanceSet.add(r.date);
+                    if (r.type !== "salary") {
+                        let recDate = new Date(r.date);
+                        let dayOfWeek = recDate.getDay();
+                        let isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                        let isHoliday = isStatutoryHoliday(currentYear, recDate.getMonth() + 1, recDate.getDate());
+                        let isWorkday = !isWeekend && !isHoliday;
+                        if (isWorkday) workdayAttendCount++;
+                    }
                 }
             }
         }
         
         let overtimeTotal = normalH + weekendH + holidayH;
-        let actualAttendanceDays = attendanceSet.size;
         let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
         let standardHours = monthWorkdayCount * 8;
         
@@ -3106,8 +3158,8 @@
             let holidayOvertime = holidayH * hourlyWage * 3;
             overtimePayForComprehensive += holidayOvertime;
         } else {
-            if (monthWorkdayCount > 0 && actualAttendanceDays > 0) {
-                hourlyWage = (baseSalary / monthWorkdayCount / 8);
+            if (monthWorkdayCount > 0) {
+                hourlyWage = baseSalary / monthWorkdayCount / 8;
             } else {
                 hourlyWage = baseSalary / 21.75 / 8;
             }
@@ -3127,13 +3179,7 @@
         if (salaryDisplayMode === 'full') {
             monthlyBasePay = baseSalary;
         } else {
-            if (actualAttendanceDays > 0 && monthWorkdayCount > 0) {
-                monthlyBasePay = (baseSalary / monthWorkdayCount) * actualAttendanceDays;
-            } else if (actualAttendanceDays > 0) {
-                monthlyBasePay = baseSalary;
-            } else {
-                monthlyBasePay = 0;
-            }
+            monthlyBasePay = monthWorkdayCount > 0 ? Math.round((baseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
         }
         
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
@@ -3142,7 +3188,7 @@
         
         return {
             normalH, weekendH, holidayH, salaryIncome, overtimePay, totalSalary,
-            attendanceDays: actualAttendanceDays, workdayHours: actualAttendanceDays * 8, 
+            attendanceDays: workdayAttendCount, workdayHours: workdayAttendCount * 8, 
             overtimeTotal: overtimeTotalForDisplay,
             vacationHours, personalHours, sickHours, paidHours, restHours, absentDays: personalDays + sickDays,
             isFullAttendance: !hasWorkdayPersonalOrSickLeave()
@@ -3154,7 +3200,7 @@
         document.getElementById("totalOvertime").innerText = stats.overtimeTotal.toFixed(1);
         document.getElementById("monthIncome").innerText = formatMoney(stats.totalSalary);
         document.getElementById("monthLabel").innerText = (currentMonth+1) + "月工资";
-        document.getElementById("attendanceDays").innerText = stats.attendanceDays;
+        document.getElementById("attendanceDays").innerText = getActualWorkdays();
         updateIncomeCardDisplay();
         renderSettingsAllowancesDeductions();
     }
@@ -3250,7 +3296,6 @@
         }
         batchTypeStats = stats;
         
-        // 确定批量模式类型
         let total = stats.workday + stats.weekend + stats.holiday;
         if (stats.workday === total) batchTypeMode = "workday";
         else if (stats.weekend === total) batchTypeMode = "weekend";
@@ -3306,7 +3351,7 @@
             showYearStats = false;
             salaryDisplayMode = 'prorated';
             localStorage.removeItem("salaryDisplayMode");
-            document.getElementById("modeBadge").innerHTML = "按出勤算";
+            document.getElementById("modeBadge").innerHTML = "按天计算";
             
             saveAllMonthlyData();
             localStorage.setItem("overtime_final", JSON.stringify({ records: [], payType: "formal", baseSalary: 0 }));
@@ -3554,10 +3599,8 @@
             let finalType = rec.type;
             if (currentShift !== "休息" && rec.type !== "salary") {
                 if (batchTypeMode === "mixed") {
-                    // 混合模式：每个日期单独匹配类型
                     finalType = getDefaultTypeForDate(dateStr);
                 } else if (batchTypeMode !== "auto") {
-                    // 单一模式：使用选定的类型
                     finalType = batchTypeMode;
                 } else {
                     finalType = rec.type;
@@ -3645,7 +3688,6 @@
     function openDrawerForBatch() {
         if (selectedDatesSet.size === 0) { showToast("请先选择日期"); return; }
         
-        // 分析选择的日期类型分布
         let { mode } = analyzeBatchDatesType();
         
         document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
@@ -3653,7 +3695,6 @@
         isEditMode = false;
         currentShift = lockedShift || "白班";
         
-        // 根据类型分布设置默认的加班类型
         if (mode === "workday") {
             currentType = "workday";
         } else if (mode === "weekend") {
@@ -3661,7 +3702,7 @@
         } else if (mode === "holiday") {
             currentType = "holiday";
         } else {
-            currentType = "workday"; // 混合模式默认值
+            currentType = "workday";
         }
         
         currentHours = 0;
@@ -3672,20 +3713,24 @@
         if (timeInput) timeInput.value = "0.0";
         updateTypeNavByShift();
         
-        // 更新加班类型选项UI
-        const smartMatchHint = document.getElementById("smartMatchHint");
-        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        const typeNav = document.getElementById("typeNav");
+        const smartHint = document.getElementById("smartMatchHintFull");
         
         if (mode === "mixed") {
-            // 混合模式：显示提示，禁用所有加班类型按钮
-            smartMatchHint.style.display = "block";
-            typeItems.forEach(item => {
-                item.classList.add("disabled");
-                item.classList.remove("active");
-            });
+            typeNav.classList.add("hide-buttons");
+            if (!smartHint) {
+                let hint = document.createElement("div");
+                hint.id = "smartMatchHintFull";
+                hint.className = "smart-match-hint-full";
+                hint.innerHTML = "🤖 智能匹配模式（将根据日期类型自动选择加班类型）";
+                typeNav.parentNode.insertBefore(hint, typeNav);
+            } else {
+                smartHint.style.display = "block";
+            }
         } else {
-            // 单一模式：隐藏提示，启用按钮，高亮当前类型
-            smartMatchHint.style.display = "none";
+            typeNav.classList.remove("hide-buttons");
+            if (smartHint) smartHint.style.display = "none";
+            const typeItems = typeNav.querySelectorAll(".type-nav-item");
             typeItems.forEach(item => {
                 item.classList.remove("disabled");
                 if (item.getAttribute("data-type") === currentType) {
@@ -3866,7 +3911,6 @@
             if (typeVal === currentType) item.classList.add("active"); 
             else item.classList.remove("active"); 
             item.onclick = () => { 
-                // 混合模式下不允许切换加班类型
                 if (batchTypeMode === "mixed" && currentShift !== "休息") {
                     showToast("混合类型模式下自动匹配加班类型，无需手动选择");
                     return;
@@ -4009,11 +4053,12 @@
         if (!hasSalaryConfig) { showToast("请先在设置页面中设置薪资方式"); return; }
         let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
         document.getElementById("drawerDateTitle").innerHTML = `${year}年${month}月${day}日`; 
-        // 隐藏批量提示
-        const smartMatchHint = document.getElementById("smartMatchHint");
-        smartMatchHint.style.display = "none";
-        // 恢复类型选项样式
-        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        
+        const typeNav = document.getElementById("typeNav");
+        typeNav.classList.remove("hide-buttons");
+        const smartHint = document.getElementById("smartMatchHintFull");
+        if (smartHint) smartHint.style.display = "none";
+        const typeItems = typeNav.querySelectorAll(".type-nav-item");
         typeItems.forEach(item => {
             item.classList.remove("disabled");
         });
@@ -4091,10 +4136,12 @@
         document.getElementById("drawerMask").style.display = "none"; 
         isEditMode = false; 
         updateLockUI(); 
-        // 清理批量模式相关的状态
-        const smartMatchHint = document.getElementById("smartMatchHint");
-        if (smartMatchHint) smartMatchHint.style.display = "none";
-        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        
+        const typeNav = document.getElementById("typeNav");
+        typeNav.classList.remove("hide-buttons");
+        const smartHint = document.getElementById("smartMatchHintFull");
+        if (smartHint) smartHint.style.display = "none";
+        const typeItems = typeNav.querySelectorAll(".type-nav-item");
         typeItems.forEach(item => {
             item.classList.remove("disabled");
         });
@@ -4116,10 +4163,9 @@
     function saveFromDrawer() { 
         if (isMultiSelectMode && selectedDatesSet.size > 0) {
             let remark = document.getElementById("remarkInput").value;
-            // 对于混合模式，保存时会根据每个日期单独计算类型，所以这里 type 可以随意
             let saveType = currentType;
             if (batchTypeMode === "mixed" && currentShift !== "休息") {
-                saveType = "workday"; // 占位，实际保存时会覆盖
+                saveType = "workday";
             }
             let newRecTemplate = currentType === "salary" ? { hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { hours: currentHours, amount: 0, type: saveType, shift: currentShift, remark: remark };
             batchSaveRecords(newRecTemplate);
@@ -4158,7 +4204,7 @@
     function toggleSalaryMode() {
         salaryDisplayMode = salaryDisplayMode === 'prorated' ? 'full' : 'prorated';
         localStorage.setItem("salaryDisplayMode", salaryDisplayMode);
-        let modeText = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+        let modeText = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
         document.getElementById("modeBadge").innerHTML = modeText;
         showToast(`✨ 已切换「${modeText}」模式 ✨`);
         updateStats();
@@ -4179,7 +4225,8 @@
             title.innerText = "📊 工时详情";
             body.innerHTML = `<div class="detail-row-item"><span class="detail-label">正班工时</span><span class="detail-amount">${stats.workdayHours.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">平时加班 (1.5倍)</span><span class="detail-amount">${stats.normalH.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">周末加班 (2倍)</span><span class="detail-amount">${stats.weekendH.toFixed(1)} 小时</span></div><div class="detail-row-item last-detail"><span class="detail-label">节假日加班 (3倍)</span><span class="detail-amount">${stats.holidayH.toFixed(1)} 小时</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">总工时</span><span class="detail-amount">${(stats.workdayHours + stats.normalH + stats.weekendH + stats.holidayH).toFixed(1)} 小时</span></div></div>`;
         } else if (type === "salary") {
-            body.innerHTML = `<div class="detail-row-item"><span class="detail-label">底薪（${salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪'}）</span><span class="detail-amount">¥ ${formatMoney(baseSalary)}</span></div><div class="detail-row-item"><span class="detail-label">平时加班费</span><span class="detail-amount">¥ ${formatMoney(stats.normalH * getHourlyWage() * 1.5)}</span></div><div class="detail-row-item"><span class="detail-label">周末加班费</span><span class="detail-amount">¥ ${formatMoney(stats.weekendH * getHourlyWage() * 2)}</span></div><div class="detail-row-item"><span class="detail-label">节假日加班费</span><span class="detail-amount">¥ ${formatMoney(stats.holidayH * getHourlyWage() * 3)}</span></div><div class="detail-row-item"><span class="detail-label">日结收入</span><span class="detail-amount">¥ ${formatMoney(stats.salaryIncome)}</span></div><div class="detail-row-item"><span class="detail-label">补贴/福利</span><span class="detail-amount">+ ¥ ${formatMoney(settingsAllowances.reduce((s,a)=>s+a.amount,0))}</span></div><div class="detail-row-item last-detail"><span class="detail-label">扣款项</span><span class="detail-amount">- ¥ ${formatMoney(settingsDeductions.reduce((s,d)=>s+d.amount,0))}</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">实发工资</span><span class="detail-amount">¥ ${formatMoney(stats.totalSalary)}</span></div></div>`;
+            let modeName = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
+            body.innerHTML = `<div class="detail-row-item"><span class="detail-label">底薪（${modeName}）</span><span class="detail-amount">¥ ${formatMoney(baseSalary)}</span></div><div class="detail-row-item"><span class="detail-label">平时加班费</span><span class="detail-amount">¥ ${formatMoney(stats.normalH * getHourlyWage() * 1.5)}</span></div><div class="detail-row-item"><span class="detail-label">周末加班费</span><span class="detail-amount">¥ ${formatMoney(stats.weekendH * getHourlyWage() * 2)}</span></div><div class="detail-row-item"><span class="detail-label">节假日加班费</span><span class="detail-amount">¥ ${formatMoney(stats.holidayH * getHourlyWage() * 3)}</span></div><div class="detail-row-item"><span class="detail-label">日结收入</span><span class="detail-amount">¥ ${formatMoney(stats.salaryIncome)}</span></div><div class="detail-row-item"><span class="detail-label">补贴/福利</span><span class="detail-amount">+ ¥ ${formatMoney(settingsAllowances.reduce((s,a)=>s+a.amount,0))}</span></div><div class="detail-row-item last-detail"><span class="detail-label">扣款项</span><span class="detail-amount">- ¥ ${formatMoney(settingsDeductions.reduce((s,d)=>s+d.amount,0))}</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">实发工资</span><span class="detail-amount">¥ ${formatMoney(stats.totalSalary)}</span></div></div>`;
         } else if (type === "attendance") {
             let dayShiftDays = 0, nightShiftDays = 0;
             let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
@@ -4385,11 +4432,9 @@
     }
     
     async function init() {
-        // 读取薪资模式
         salaryDisplayMode = localStorage.getItem("salaryDisplayMode") || 'prorated';
-        document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+        document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
         
-        // 加载本地数据（同步）
         loadAllMonthlyData();
         let raw = localStorage.getItem("overtime_final");
         if (raw) { try { let d = JSON.parse(raw); records = d.records || []; payType = d.payType || "formal"; } catch(e) {} }
@@ -4399,17 +4444,13 @@
         selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         loadDataForCurrentMonth();
         
-        // 等待 lunar.js 加载完成
         await waitForLunar();
         
-        // 直接渲染日历
         renderCalendar();
         renderBottom();
         
-        // 获取版本号显示
         updateAppVersion();
         
-        // 绑定事件
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
         document.getElementById("remarkModalConfirm").onclick = closeRemarkModal;
         document.getElementById("remarkModal").onclick = (e) => { if (e.target === document.getElementById("remarkModal")) closeRemarkModal(); };
@@ -4477,10 +4518,8 @@
         document.getElementById("helpBtn").onclick = showHelpSubPage;
         document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
         
-        // 版本卡片点击强制更新缓存
         document.getElementById("versionCard").onclick = forceUpdateCache;
         
-        // 补贴/扣款收起展开事件绑定
         document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
         document.getElementById("deductionHeader").onclick = toggleDeductionExpand;
         
@@ -4493,9 +4532,8 @@
         
         let displayName = (currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") ? currentSalaryMethodName : "暂未设置计薪方式";
         document.getElementById("salaryMethodDisplay").innerText = displayName;
-        document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+        document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
         
-        // 初始化收起展开状态
         updateSubsidyExpandState();
         updateDeductionExpandState();
         
