@@ -503,6 +503,9 @@
             border-bottom: 1px solid #eef2f6;
             cursor: pointer;
         }
+        .subded-header:active {
+            background: #f0f2f5;
+        }
         .subded-header h3 {
             font-size: 0.75rem;
             font-weight: 600;
@@ -754,6 +757,8 @@
         .type-nav { display: flex; gap: 0; background: #fff; padding: 4px; border-bottom: 1px solid #f0f0f0; }
         .type-nav-item { flex: 1; text-align: center; padding: 10px 0; font-size: 0.7rem; font-weight: 500; color: #606266; cursor: pointer; border-radius: 8px; background: #fff; }
         .type-nav-item.active { background: #66b3ff; color: white; }
+        .type-nav-item.disabled { background: #f5f5f5; color: #ccc; cursor: not-allowed; }
+        .type-nav-item.disabled:active { transform: none; background: #f5f5f5; }
         .time-control-wrapper { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px 10px; }
         .time-label { font-size: 0.68rem; color: #606266; }
         .time-control { display: flex; align-items: center; gap: 8px; }
@@ -1456,7 +1461,7 @@
             color: #f56c6c;
         }
         
-        /* 批量模式类型标签 */
+        /* 批量模式智能匹配提示 */
         .batch-type-indicator {
             background: #e6f7ff;
             border-radius: 12px;
@@ -1466,7 +1471,7 @@
             color: #0099ff;
             text-align: center;
         }
-        .batch-type-indicator.auto {
+        .batch-type-indicator.mixed {
             background: #fff7e6;
             color: #fa8c16;
         }
@@ -1853,6 +1858,7 @@
     
     // 批量模式类型统计
     let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
+    let batchTypeMode = "auto"; // "workday", "weekend", "holiday", "mixed"
     
     // tiaoxiuData 由 tiaoxiu.js 提供全局变量
     // 获取版本号
@@ -1884,7 +1890,6 @@
         showToast("🔄 正在检查更新...");
         try {
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                // 发送消息给 Service Worker 跳过等待并激活
                 const registration = await navigator.serviceWorker.getRegistration();
                 if (registration && registration.waiting) {
                     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -1893,7 +1898,6 @@
                         window.location.reload();
                     }, 500);
                 } else {
-                    // 尝试检查更新
                     await registration.update();
                     showToast("✅ 已检查更新，即将刷新");
                     setTimeout(() => {
@@ -1901,7 +1905,6 @@
                     }, 500);
                 }
             } else {
-                // 不支持 Service Worker，直接刷新
                 showToast("🔄 正在刷新页面...");
                 setTimeout(() => {
                     window.location.reload();
@@ -3242,26 +3245,76 @@
             else if (type === "holiday") stats.holiday++;
         }
         batchTypeStats = stats;
-        return stats;
+        
+        // 确定批量模式类型
+        let total = stats.workday + stats.weekend + stats.holiday;
+        if (stats.workday === total) batchTypeMode = "workday";
+        else if (stats.weekend === total) batchTypeMode = "weekend";
+        else if (stats.holiday === total) batchTypeMode = "holiday";
+        else batchTypeMode = "mixed";
+        
+        return { stats, mode: batchTypeMode };
     }
     
-    // 获取批量模式的提示文本
+    // 获取批量模式的提示文本和推荐的加班类型
     function getBatchTypeHint() {
         let stats = batchTypeStats;
         let total = stats.workday + stats.weekend + stats.holiday;
-        if (total === 0) return "";
+        if (total === 0) return { text: "", recommendedType: "workday", isMixed: false };
         
-        let types = [];
-        if (stats.workday > 0) types.push(`${stats.workday}个工作日`);
-        if (stats.weekend > 0) types.push(`${stats.weekend}个周末`);
-        if (stats.holiday > 0) types.push(`${stats.holiday}个节假日`);
-        
-        if (types.length === 1) {
-            let typeMap = { workday: "正常班", weekend: "周末加班", holiday: "节假日加班" };
-            let singleType = stats.workday > 0 ? "workday" : (stats.weekend > 0 ? "weekend" : "holiday");
-            return `📌 已选 ${types[0]}，将记录为「${typeMap[singleType]}」`;
+        if (batchTypeMode === "workday") {
+            return { text: `📌 已选 ${stats.workday}个工作日，将记录为「正常班」`, recommendedType: "workday", isMixed: false };
+        } else if (batchTypeMode === "weekend") {
+            return { text: `📌 已选 ${stats.weekend}个周末，将记录为「周末加班」`, recommendedType: "weekend", isMixed: false };
+        } else if (batchTypeMode === "holiday") {
+            return { text: `📌 已选 ${stats.holiday}个节假日，将记录为「节假日加班」`, recommendedType: "holiday", isMixed: false };
         } else {
-            return `📌 已选 ${types.join('、')}，将自动匹配对应加班类型`;
+            let parts = [];
+            if (stats.workday > 0) parts.push(`${stats.workday}个工作日`);
+            if (stats.weekend > 0) parts.push(`${stats.weekend}个周末`);
+            if (stats.holiday > 0) parts.push(`${stats.holiday}个节假日`);
+            return { text: `📌 已选 ${parts.join('、')}，将智能匹配对应加班类型`, recommendedType: "auto", isMixed: true };
+        }
+    }
+    
+    // 更新批量模式下的加班类型选项UI
+    function updateBatchTypeNav() {
+        const typeNav = document.getElementById("typeNav");
+        const typeItems = typeNav.querySelectorAll(".type-nav-item");
+        
+        if (batchTypeMode === "mixed") {
+            // 混合模式：所有选项禁用，显示智能匹配
+            typeItems.forEach(item => {
+                item.classList.add("disabled");
+                if (item.getAttribute("data-type") !== "salary") {
+                    item.style.opacity = "0.5";
+                }
+            });
+            // 添加智能匹配提示（如果还没有）
+            let existingHint = document.getElementById("smartMatchHint");
+            if (!existingHint && currentShift !== "休息") {
+                let hint = document.createElement("div");
+                hint.id = "smartMatchHint";
+                hint.className = "batch-type-indicator mixed";
+                hint.style.marginTop = "8px";
+                hint.style.marginBottom = "0";
+                hint.style.padding = "6px 12px";
+                hint.style.fontSize = "0.65rem";
+                hint.innerHTML = "🤖 智能匹配：根据每个日期的实际类型自动选择加班类型";
+                typeNav.parentNode.insertBefore(hint, typeNav.nextSibling);
+            }
+        } else {
+            // 单一模式：启用所有选项，高亮推荐的选项
+            typeItems.forEach(item => {
+                item.classList.remove("disabled");
+                item.style.opacity = "1";
+                if (batchTypeMode !== "auto" && item.getAttribute("data-type") === batchTypeMode) {
+                    item.classList.add("active");
+                    currentType = batchTypeMode;
+                }
+            });
+            let existingHint = document.getElementById("smartMatchHint");
+            if (existingHint) existingHint.remove();
         }
     }
     
@@ -3556,10 +3609,17 @@
         let count = selectedDatesSet.size;
         for (let dateStr of selectedDatesSet) {
             let existingIdx = records.findIndex(r => r.date === dateStr);
-            // 批量模式下，每个日期单独计算加班类型
             let finalType = rec.type;
             if (currentShift !== "休息" && rec.type !== "salary") {
-                finalType = getDefaultTypeForDate(dateStr);
+                if (batchTypeMode === "mixed") {
+                    // 混合模式：每个日期单独匹配类型
+                    finalType = getDefaultTypeForDate(dateStr);
+                } else if (batchTypeMode !== "auto") {
+                    // 单一模式：使用选定的类型
+                    finalType = batchTypeMode;
+                } else {
+                    finalType = rec.type;
+                }
             }
             let newRec = { ...rec, date: dateStr, type: finalType, id: Date.now() + "-" + Math.random() + "-" + dateStr };
             if (existingIdx >= 0) records[existingIdx] = newRec;
@@ -3644,31 +3704,33 @@
         if (selectedDatesSet.size === 0) { showToast("请先选择日期"); return; }
         
         // 分析选择的日期类型分布
-        analyzeBatchDatesType();
-        let typeHint = getBatchTypeHint();
+        let { mode } = analyzeBatchDatesType();
+        let hint = getBatchTypeHint();
         
         document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
         const batchIndicator = document.getElementById("batchTypeIndicator");
-        if (typeHint) {
+        if (hint.text) {
             batchIndicator.style.display = "block";
-            batchIndicator.innerHTML = typeHint;
-            // 根据是否单一类型设置样式
-            if (batchTypeStats.workday > 0 && batchTypeStats.weekend === 0 && batchTypeStats.holiday === 0) {
-                batchIndicator.className = "batch-type-indicator";
-            } else if (batchTypeStats.weekend > 0 && batchTypeStats.workday === 0 && batchTypeStats.holiday === 0) {
-                batchIndicator.className = "batch-type-indicator";
-            } else if (batchTypeStats.holiday > 0 && batchTypeStats.workday === 0 && batchTypeStats.weekend === 0) {
-                batchIndicator.className = "batch-type-indicator";
-            } else {
-                batchIndicator.className = "batch-type-indicator auto";
-            }
+            batchIndicator.innerHTML = hint.text;
+            batchIndicator.className = hint.isMixed ? "batch-type-indicator mixed" : "batch-type-indicator";
         } else {
             batchIndicator.style.display = "none";
         }
         
         isEditMode = false;
         currentShift = lockedShift || "白班";
-        currentType = "workday";
+        
+        // 根据类型分布设置默认的加班类型
+        if (mode === "workday") {
+            currentType = "workday";
+        } else if (mode === "weekend") {
+            currentType = "weekend";
+        } else if (mode === "holiday") {
+            currentType = "holiday";
+        } else {
+            currentType = "workday"; // 混合模式默认值，但会被保存时的逻辑覆盖
+        }
+        
         currentHours = 0;
         currentAmount = 0;
         currentRemark = "";
@@ -3676,6 +3738,50 @@
         let timeInput = document.getElementById("timeInput");
         if (timeInput) timeInput.value = "0.0";
         updateTypeNavByShift();
+        
+        // 更新加班类型选项UI
+        if (mode === "mixed") {
+            // 混合模式：禁用加班类型选项
+            const typeNav = document.getElementById("typeNav");
+            const typeItems = typeNav.querySelectorAll(".type-nav-item");
+            typeItems.forEach(item => {
+                item.classList.add("disabled");
+                if (item.getAttribute("data-type") !== "salary") {
+                    item.style.opacity = "0.5";
+                }
+                // 移除高亮
+                item.classList.remove("active");
+            });
+            // 添加智能匹配提示
+            let existingHint = document.getElementById("smartMatchHint");
+            if (!existingHint && currentShift !== "休息") {
+                let hintDiv = document.createElement("div");
+                hintDiv.id = "smartMatchHint";
+                hintDiv.className = "batch-type-indicator mixed";
+                hintDiv.style.marginTop = "8px";
+                hintDiv.style.marginBottom = "0";
+                hintDiv.style.padding = "6px 12px";
+                hintDiv.style.fontSize = "0.65rem";
+                hintDiv.innerHTML = "🤖 智能匹配：根据每个日期的实际类型自动选择加班类型";
+                typeNav.parentNode.insertBefore(hintDiv, typeNav.nextSibling);
+            }
+        } else if (mode !== "auto") {
+            // 单一模式：高亮对应的类型
+            const typeNav = document.getElementById("typeNav");
+            const typeItems = typeNav.querySelectorAll(".type-nav-item");
+            typeItems.forEach(item => {
+                item.classList.remove("disabled");
+                item.style.opacity = "1";
+                if (item.getAttribute("data-type") === currentType) {
+                    item.classList.add("active");
+                } else {
+                    item.classList.remove("active");
+                }
+            });
+            let existingHint = document.getElementById("smartMatchHint");
+            if (existingHint) existingHint.remove();
+        }
+        
         document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active"));
         document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => {
             if (btn.getAttribute("data-shift") === currentShift) btn.classList.add("active");
@@ -3846,6 +3952,11 @@
             if (typeVal === currentType) item.classList.add("active"); 
             else item.classList.remove("active"); 
             item.onclick = () => { 
+                // 混合模式下不允许切换加班类型
+                if (batchTypeMode === "mixed" && currentShift !== "休息") {
+                    showToast("混合类型模式下自动匹配加班类型，无需手动选择");
+                    return;
+                }
                 document.querySelectorAll("#typeNav .type-nav-item").forEach(i => i.classList.remove("active")); 
                 item.classList.add("active"); 
                 currentType = typeVal; 
@@ -4059,6 +4170,16 @@
         document.getElementById("drawerMask").style.display = "none"; 
         isEditMode = false; 
         updateLockUI(); 
+        // 清理批量模式相关的提示
+        let existingHint = document.getElementById("smartMatchHint");
+        if (existingHint) existingHint.remove();
+        // 恢复类型选项样式
+        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        typeItems.forEach(item => {
+            item.classList.remove("disabled");
+            item.style.opacity = "1";
+        });
+        batchTypeMode = "auto";
     }
     
     function deleteCurrentRecord() { 
@@ -4076,7 +4197,12 @@
     function saveFromDrawer() { 
         if (isMultiSelectMode && selectedDatesSet.size > 0) {
             let remark = document.getElementById("remarkInput").value;
-            let newRecTemplate = currentType === "salary" ? { hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { hours: currentHours, amount: 0, type: currentType, shift: currentShift, remark: remark };
+            // 对于混合模式，保存时会根据每个日期单独计算类型，所以这里 type 可以随意
+            let saveType = currentType;
+            if (batchTypeMode === "mixed" && currentShift !== "休息") {
+                saveType = "workday"; // 占位，实际保存时会覆盖
+            }
+            let newRecTemplate = currentType === "salary" ? { hours: 0, amount: currentAmount, type: "salary", shift: currentShift, remark: remark } : { hours: currentHours, amount: 0, type: saveType, shift: currentShift, remark: remark };
             batchSaveRecords(newRecTemplate);
             closeDrawer();
             return;
@@ -4435,7 +4561,7 @@
         // 版本卡片点击强制更新缓存
         document.getElementById("versionCard").onclick = forceUpdateCache;
         
-        // 补贴/扣款收起展开事件绑定（去掉按下效果）
+        // 补贴/扣款收起展开事件绑定
         document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
         document.getElementById("deductionHeader").onclick = toggleDeductionExpand;
         
