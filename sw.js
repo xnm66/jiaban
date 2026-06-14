@@ -1,5 +1,5 @@
 // sw.js - Cache First + 后台静默更新（秒开）
-const CACHE_VERSION = 'v1.6.4';
+const CACHE_VERSION = 'v1.6.5';
 const CACHE_NAME = `jiaban-${CACHE_VERSION}`;
 const urlsToCache = [
     './',
