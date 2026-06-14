@@ -1885,7 +1885,20 @@
     
     function showToast(msg){ let t=document.getElementById("toastMsg"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",1500); }
     
-    // ==================== 调班相关函数 ====================
+    // ==================== 判断日期类型 ====================
+    function isWorkdayOriginal(dateStr) {
+        let [year, month, day] = dateStr.split('-').map(Number);
+        let isHoliday = isStatutoryHoliday(year, month, day);
+        if (isHoliday) return false;
+        let date = new Date(year, month - 1, day);
+        let dayOfWeek = date.getDay();
+        return dayOfWeek !== 0 && dayOfWeek !== 6;
+    }
+    
+    function isWeekendOriginal(dateStr) {
+        return !isWorkdayOriginal(dateStr);
+    }
+    
     function getDefaultTypeByDate(dateStr, tiaoxiu) { 
         let [year, month, day] = dateStr.split('-').map(Number); 
         let isHoliday = isStatutoryHoliday(year, month, day); 
@@ -1898,45 +1911,11 @@
         return "workday"; 
     }
     
-    // 判断是否为周末（不考虑调班）
-    function isWeekendByDate(dateStr) {
-        let date = new Date(dateStr);
-        let dayOfWeek = date.getDay();
-        return dayOfWeek === 0 || dayOfWeek === 6;
-    }
-    
-    // 判断日期原本是否为工作日（不考虑调班）
-    function isWorkdayByDate(dateStr) {
-        let [year, month, day] = dateStr.split('-').map(Number);
-        let isHoliday = isStatutoryHoliday(year, month, day);
-        if (isHoliday) return false;
-        let date = new Date(dateStr);
-        let dayOfWeek = date.getDay();
-        return dayOfWeek !== 0 && dayOfWeek !== 6;
-    }
-    
-    // 判断是否构成调班：选择的类型与日期实际类型不符
+    // 判断是否构成手动调班
     function isSwapShift(dateStr, selectedType) {
         if (selectedType === "salary") return false;
-        if (selectedType === "workday") {
-            // 选择正常加班：如果原本是周末，则构成调班
-            return isWeekendByDate(dateStr);
-        } else if (selectedType === "weekend") {
-            // 选择周末加班：如果原本是工作日，则构成调班
-            return isWorkdayByDate(dateStr);
-        } else if (selectedType === "holiday") {
-            // 节假日加班：如果原本不是节假日，构成调班
-            let [year, month, day] = dateStr.split('-').map(Number);
-            return !isStatutoryHoliday(year, month, day);
-        }
-        return false;
-    }
-    
-    // 根据选择的类型获取正确的调班后类型
-    function getSwapType(dateStr, selectedType) {
-        if (!isSwapShift(dateStr, selectedType)) return selectedType;
-        // 如果构成调班，选择的类型就是调班后的类型
-        return selectedType;
+        let defaultType = getDefaultTypeByDate(dateStr, getTiaoxiu(currentYear, dateStr));
+        return selectedType !== defaultType;
     }
     
     // ==================== Service Worker 版本更新 ====================
@@ -2186,7 +2165,7 @@
         return getMonthWorkdayCount(year, month) * 8;
     }
     
-    // 全勤奖计算（考虑调班）
+    // 全勤奖计算（只统计 type 为 workday 且上班的记录）
     function computeFullAttendanceAmount(item) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
@@ -2196,24 +2175,13 @@
         
         let dailyRate = fullAmount / totalWorkdays;
         let attendedWorkdays = 0;
-        let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         
-        for (let d = 1; d <= daysInMonth; d++) {
-            let dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            let tiaoxiu = getTiaoxiu(currentYear, dateStr);
-            let isHoliday = isStatutoryHoliday(currentYear, currentMonth + 1, d);
-            let date = new Date(currentYear, currentMonth, d);
-            let isWeekend = (date.getDay() === 0 || date.getDay() === 6 || tiaoxiu.isFangjia);
-            let isWorkday = !isHoliday && !isWeekend && !tiaoxiu.isJiaban;
-            
-            if (isWorkday) {
-                let rec = getDayRecords(dateStr)[0];
-                // 有记录且不是休息，或者调班后是工作日（原周末变工作日）
-                if (rec && rec.shift !== "休息" && rec.type !== "salary") {
+        for (let r of records) {
+            let [y, m] = r.date.split('-');
+            if (parseInt(y) === currentYear && parseInt(m) - 1 === currentMonth) {
+                // 只统计 type 为 workday 且不是休息的记录
+                if (r.type === "workday" && r.shift !== "休息") {
                     attendedWorkdays++;
-                } else if (rec && rec.swapped && rec.type === "workday") {
-                    // 调班后变成工作日，且上班了
-                    if (rec.shift !== "休息") attendedWorkdays++;
                 }
             }
         }
@@ -2935,7 +2903,7 @@
         } else {
             let stats = getCurrentMonthStatsForSettings();
             document.getElementById("incomeCardLabel").innerHTML = "本月预估收入";
-            document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalSalary, true);
+            document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalSalary, false);
             document.getElementById("settingsBaseSalary").innerHTML = formatMoney(baseSalary, false);
             document.getElementById("settingsOvertime").innerHTML = formatMoney(stats.overtimePay, false);
             document.getElementById("settingsAllowances").innerHTML = formatMoney(stats.allowancesTotal, true);
@@ -3047,7 +3015,7 @@
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
         
         document.getElementById("incomeCardLabel").innerHTML = `${year}年${month+1}月预估收入`;
-        document.getElementById("settingsMonthIncome").innerHTML = formatMoney(totalSalary, true);
+        document.getElementById("settingsMonthIncome").innerHTML = formatMoney(totalSalary, false);
         document.getElementById("settingsBaseSalary").innerHTML = formatMoney(monthBaseSalary, false);
         document.getElementById("settingsOvertime").innerHTML = formatMoney(overtimePay, false);
         document.getElementById("settingsAllowances").innerHTML = formatMoney(allowancesTotal, true);
@@ -3233,7 +3201,7 @@
     function updateStats() {
         let stats = getCurrentMonthStats();
         document.getElementById("totalOvertime").innerText = stats.overtimeTotal.toFixed(1);
-        document.getElementById("monthIncome").innerText = formatMoney(stats.totalSalary, true);
+        document.getElementById("monthIncome").innerText = formatMoney(stats.totalSalary, false);
         document.getElementById("monthLabel").innerText = (currentMonth+1) + "月工资";
         document.getElementById("attendanceDays").innerText = getActualWorkdays();
         updateIncomeCardDisplay();
@@ -3329,9 +3297,9 @@
     function shouldTriggerSwap() {
         if (!isMultiSelectMode || selectedDatesSet.size !== 2) return false;
         let dates = Array.from(selectedDatesSet);
-        let isWorkday1 = isWorkday(dates[0]);
-        let isWorkday2 = isWorkday(dates[1]);
-        return (isWorkday1 && !isWorkday2) || (!isWorkday1 && isWorkday2);
+        let type1 = getDefaultTypeForDate(dates[0]);
+        let type2 = getDefaultTypeForDate(dates[1]);
+        return (type1 === "workday" && type2 === "weekend") || (type1 === "weekend" && type2 === "workday");
     }
     
     function isDateHasShiftBadge(dateStr) {
@@ -3389,8 +3357,8 @@
     // ==================== 多选调班（两个日期互换） ====================
     function showSwapStep1() {
         let dates = Array.from(selectedDatesSet);
-        let workdayDate = isWorkday(dates[0]) ? dates[0] : dates[1];
-        let weekendDate = isWorkday(dates[0]) ? dates[1] : dates[0];
+        let workdayDate = getDefaultTypeForDate(dates[0]) === "workday" ? dates[0] : dates[1];
+        let weekendDate = getDefaultTypeForDate(dates[0]) === "weekend" ? dates[0] : dates[1];
         swapDates = [workdayDate, weekendDate];
         let workdayRec = getDayRecords(workdayDate)[0];
         let defaultHours = workdayRec ? workdayRec.hours : 0;
@@ -3537,7 +3505,6 @@
         
         let targetShift = lockedShift ? lockedShift : "白班";
         
-        // 原工作日 → 变成周末加班
         let newWorkdayRec = {
             id: workdayRec ? workdayRec.id : Date.now() + Math.random(),
             date: workdayDate,
@@ -3549,7 +3516,6 @@
             swapped: true
         };
         
-        // 原周末 → 变成正常加班
         let newWeekendRec = {
             id: weekendRec ? weekendRec.id : Date.now() + Math.random(),
             date: weekendDate,
@@ -4197,9 +4163,7 @@
         if (currentShift !== "休息" && currentType !== "salary") {
             let defaultType = getDefaultTypeByDate(selectedDate, getTiaoxiu(currentYear, selectedDate));
             if (currentType !== defaultType) {
-                // 选择的类型与日期实际类型不符，构成调班
                 isSwapped = true;
-                // 调班后的类型就是选择的类型
                 finalType = currentType;
             }
         }
@@ -4256,7 +4220,7 @@
             body.innerHTML = `<div class="detail-row-item"><span class="detail-label">正班工时</span><span class="detail-amount">${stats.workdayHours.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">平时加班 (1.5倍)</span><span class="detail-amount">${stats.normalH.toFixed(1)} 小时</span></div><div class="detail-row-item"><span class="detail-label">周末加班 (2倍)</span><span class="detail-amount">${stats.weekendH.toFixed(1)} 小时</span></div><div class="detail-row-item last-detail"><span class="detail-label">节假日加班 (3倍)</span><span class="detail-amount">${stats.holidayH.toFixed(1)} 小时</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">总工时</span><span class="detail-amount">${(stats.workdayHours + stats.normalH + stats.weekendH + stats.holidayH).toFixed(1)} 小时</span></div></div>`;
         } else if (type === "salary") {
             let modeName = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
-            body.innerHTML = `<div class="detail-row-item"><span class="detail-label">底薪（${modeName}）</span><span class="detail-amount">¥ ${formatMoney(baseSalary, false)}</span></div><div class="detail-row-item"><span class="detail-label">平时加班费</span><span class="detail-amount">¥ ${formatMoney(stats.normalH * getHourlyWage() * 1.5, false)}</span></div><div class="detail-row-item"><span class="detail-label">周末加班费</span><span class="detail-amount">¥ ${formatMoney(stats.weekendH * getHourlyWage() * 2, false)}</span></div><div class="detail-row-item"><span class="detail-label">节假日加班费</span><span class="detail-amount">¥ ${formatMoney(stats.holidayH * getHourlyWage() * 3, false)}</span></div><div class="detail-row-item"><span class="detail-label">日结收入</span><span class="detail-amount">¥ ${formatMoney(stats.salaryIncome, false)}</span></div><div class="detail-row-item"><span class="detail-label">补贴/福利</span><span class="detail-amount">+ ¥ ${formatMoney(settingsAllowances.reduce((s,a)=>s+a.amount,0), true)}</span></div><div class="detail-row-item last-detail"><span class="detail-label">扣款项</span><span class="detail-amount">- ¥ ${formatMoney(settingsDeductions.reduce((s,d)=>s+d.amount,0), false)}</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">实发工资</span><span class="detail-amount">¥ ${formatMoney(stats.totalSalary, true)}</span></div></div>`;
+            body.innerHTML = `<div class="detail-row-item"><span class="detail-label">底薪（${modeName}）</span><span class="detail-amount">¥ ${formatMoney(baseSalary, false)}</span></div><div class="detail-row-item"><span class="detail-label">平时加班费</span><span class="detail-amount">¥ ${formatMoney(stats.normalH * getHourlyWage() * 1.5, false)}</span></div><div class="detail-row-item"><span class="detail-label">周末加班费</span><span class="detail-amount">¥ ${formatMoney(stats.weekendH * getHourlyWage() * 2, false)}</span></div><div class="detail-row-item"><span class="detail-label">节假日加班费</span><span class="detail-amount">¥ ${formatMoney(stats.holidayH * getHourlyWage() * 3, false)}</span></div><div class="detail-row-item"><span class="detail-label">日结收入</span><span class="detail-amount">¥ ${formatMoney(stats.salaryIncome, false)}</span></div><div class="detail-row-item"><span class="detail-label">补贴/福利</span><span class="detail-amount">+ ¥ ${formatMoney(settingsAllowances.reduce((s,a)=>s+a.amount,0), true)}</span></div><div class="detail-row-item last-detail"><span class="detail-label">扣款项</span><span class="detail-amount">- ¥ ${formatMoney(settingsDeductions.reduce((s,d)=>s+d.amount,0), false)}</span></div><div class="detail-footer"><div class="detail-summary"><span class="detail-label">实发工资</span><span class="detail-amount">¥ ${formatMoney(stats.totalSalary, false)}</span></div></div>`;
         } else if (type === "attendance") {
             let dayShiftDays = 0, nightShiftDays = 0;
             let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
