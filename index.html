@@ -501,7 +501,9 @@
             padding: 12px 16px;
             background: #fafbfc;
             border-bottom: 1px solid #eef2f6;
+            cursor: pointer;
         }
+        .subded-header:active { background: #f0f2f5; }
         .subded-header h3 {
             font-size: 0.75rem;
             font-weight: 600;
@@ -513,6 +515,22 @@
         }
         .subded-header-total.positive { color: #2e7d32; }
         .subded-header-total.negative { color: #c62828; }
+        .subded-header-arrow {
+            font-size: 0.7rem;
+            color: #909399;
+            transition: transform 0.2s ease;
+        }
+        .subded-header-arrow.expanded {
+            transform: rotate(90deg);
+        }
+        .subded-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .subded-list.expanded {
+            max-height: 1000px;
+        }
         .subded-item {
             display: flex;
             justify-content: space-between;
@@ -1474,16 +1492,32 @@
                 <div id="yearStatsContainer" style="display: none;"></div>
             </div>
 
-            <div class="subded-card">
-                <div class="subded-header"><h3>🎁 补贴项目</h3><span class="subded-header-total positive" id="settingsSubTotal">+¥0</span></div>
-                <div id="settingsSubsidyList"></div>
-                <button class="add-link-btn" id="settingsAddSubsidyBtn">+ 添加补贴</button>
+            <div class="subded-card" id="subsidyCard">
+                <div class="subded-header" id="subsidyHeader">
+                    <h3>🎁 补贴项目</h3>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span class="subded-header-total positive" id="settingsSubTotal">+¥0</span>
+                        <span class="subded-header-arrow" id="subsidyArrow">›</span>
+                    </div>
+                </div>
+                <div class="subded-list" id="subsidyListContainer">
+                    <div id="settingsSubsidyList"></div>
+                    <button class="add-link-btn" id="settingsAddSubsidyBtn">+ 添加补贴</button>
+                </div>
             </div>
 
-            <div class="subded-card">
-                <div class="subded-header"><h3>📉 扣款项目</h3><span class="subded-header-total negative" id="settingsDedTotal">-¥0</span></div>
-                <div id="settingsDeductionList"></div>
-                <button class="add-link-btn" id="settingsAddDeductionBtn">+ 添加扣款</button>
+            <div class="subded-card" id="deductionCard">
+                <div class="subded-header" id="deductionHeader">
+                    <h3>📉 扣款项目</h3>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span class="subded-header-total negative" id="settingsDedTotal">-¥0</span>
+                        <span class="subded-header-arrow" id="deductionArrow">›</span>
+                    </div>
+                </div>
+                <div class="subded-list" id="deductionListContainer">
+                    <div id="settingsDeductionList"></div>
+                    <button class="add-link-btn" id="settingsAddDeductionBtn">+ 添加扣款</button>
+                </div>
             </div>
 
             <div class="settings-header">📊 数据管理</div>
@@ -1682,6 +1716,7 @@
                 <span class="z_bigCardLabel">项目名称</span>
                 <div class="z_inputWrapper"><input type="text" id="z_dedName" class="z_inputField" placeholder="请输入名称"></div>
             </div>
+            <!-- 社保和公积金不再显示百分比切换按钮，所以隐藏这个区域 -->
             <div class="z_subCalcSwitch" id="z_dedSubSwitch" style="display: none;">
                 <div class="z_subCalcSwitchBtn z_active" data-subtype="fixed">按月固定</div>
                 <div class="z_subCalcSwitchBtn" data-subtype="percent">按百分比</div>
@@ -1779,6 +1814,7 @@
     let isMultiSelectMode = false;
     let selectedDatesSet = new Set();
     let longPressTimer = null;
+    let longPressIncomeTimer = null;  // 用于区分长按工资区域的定时器
     
     let showYearStats = false;
     
@@ -1793,6 +1829,10 @@
     let settingsTouchEndX = 0;
     
     let isLoading = true;
+    
+    // 补贴/扣款项收起展开状态持久化
+    let subsidyExpanded = localStorage.getItem("subsidyExpanded") !== 'false';
+    let deductionExpanded = localStorage.getItem("deductionExpanded") !== 'false';
     
     // tiaoxiuData 由 tiaoxiu.js 提供全局变量
     // 获取版本号
@@ -1919,8 +1959,8 @@
     let z_editTarget = null, z_isEditing = false, z_selectedType = null, z_calcType = 'month', z_customName = '', z_dayAuto = true, z_dedSubType = 'fixed', z_hourAuto = true, z_leaveSubType = 'fixed';
     const z_subsidyOpts = ['伙食补贴', '夜班补贴', '高温补贴', '绩效补贴', '住房补贴', '全勤奖', '岗位补贴', '工龄补贴', '其它项目'];
     const z_fullAttend = ['全勤奖'];
-    const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
-    const z_percentDeds = ['社保扣款', '公积金扣款'];
+    // 社保和公积金不再显示百分比选项
+    const z_percentDeds = [];
     const z_leaveDeds = ['事假扣款', '病假扣款'];
     
     function formatMoney(value) {
@@ -2066,12 +2106,15 @@
         document.getElementById('z_delModal').style.display = 'flex';
     }
     
+    // 渲染补贴/扣款项，支持收起展开
     function renderSettingsAllowancesDeductions() {
         recalcDayBasedAllowances();
         let subTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
         let dedTotal = settingsDeductions.reduce((s, d) => s + (d.amount || 0), 0);
         document.getElementById("settingsSubTotal").innerText = "+¥" + formatMoney(subTotal);
         document.getElementById("settingsDedTotal").innerText = "-¥" + formatMoney(dedTotal);
+        
+        // 渲染补贴列表
         let subHtml = '';
         settingsAllowances.forEach((item, idx) => {
             subHtml += `<div class="subded-item" data-idx="${idx}" data-type="subsidy"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#2e7d32">+¥${formatMoney(item.amount)}</div></div>`;
@@ -2084,6 +2127,8 @@
             el.ontouchend = z_cancelTimer;
             el.ontouchmove = z_cancelTimer;
         });
+        
+        // 渲染扣款列表
         let dedHtml = '';
         settingsDeductions.forEach((item, idx) => {
             dedHtml += `<div class="subded-item" data-idx="${idx}" data-type="deduction"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#c62828">-¥${formatMoney(item.amount)}</div></div>`;
@@ -2096,7 +2141,49 @@
             el.ontouchend = z_cancelTimer;
             el.ontouchmove = z_cancelTimer;
         });
+        
+        // 设置收起展开状态
+        updateSubsidyExpandState();
+        updateDeductionExpandState();
+        
         updateIncomeCardDisplay();
+    }
+    
+    // 更新补贴区域的展开/收起状态
+    function updateSubsidyExpandState() {
+        const listContainer = document.getElementById("subsidyListContainer");
+        const arrow = document.getElementById("subsidyArrow");
+        if (subsidyExpanded) {
+            listContainer.classList.add("expanded");
+            arrow.classList.add("expanded");
+        } else {
+            listContainer.classList.remove("expanded");
+            arrow.classList.remove("expanded");
+        }
+    }
+    
+    function updateDeductionExpandState() {
+        const listContainer = document.getElementById("deductionListContainer");
+        const arrow = document.getElementById("deductionArrow");
+        if (deductionExpanded) {
+            listContainer.classList.add("expanded");
+            arrow.classList.add("expanded");
+        } else {
+            listContainer.classList.remove("expanded");
+            arrow.classList.remove("expanded");
+        }
+    }
+    
+    function toggleSubsidyExpand() {
+        subsidyExpanded = !subsidyExpanded;
+        localStorage.setItem("subsidyExpanded", subsidyExpanded);
+        updateSubsidyExpandState();
+    }
+    
+    function toggleDeductionExpand() {
+        deductionExpanded = !deductionExpanded;
+        localStorage.setItem("deductionExpanded", deductionExpanded);
+        updateDeductionExpandState();
     }
     
     function z_editSubsidyItem(idx) {
@@ -2177,6 +2264,8 @@
         if (bigCard) bigCard.style.marginTop = '0';
         
         z_selectedType = item.name;
+        // 社保和公积金不再显示百分比选项，直接显示固定金额
+        const isSocialOrFund = (item.name === '社保扣款' || item.name === '公积金扣款');
         document.getElementById('z_dedSubSwitch').style.display = 'none';
         document.getElementById('z_leaveSubSwitch').style.display = 'none';
         document.getElementById('z_leaveHourArea').style.display = 'none';
@@ -2184,25 +2273,8 @@
         document.getElementById('z_dedPercentArea').style.display = 'none';
         document.getElementById('z_dedUnit').innerText = '元/月';
         document.getElementById('z_dedHint').innerHTML = '按月固定扣款金额';
-        if (z_percentDeds.includes(item.name)) {
-            document.getElementById('z_dedSubSwitch').style.display = 'flex';
-            z_dedSubType = item.subType || 'fixed';
-            if (z_dedSubType === 'fixed') {
-                document.getElementById('z_dedFixedArea').style.display = 'block';
-                document.getElementById('z_dedPercentArea').style.display = 'none';
-                document.getElementById('z_dedUnit').innerText = '元/月';
-                document.getElementById('z_dedAmount').value = item.amount || '';
-            } else {
-                document.getElementById('z_dedFixedArea').style.display = 'none';
-                document.getElementById('z_dedPercentArea').style.display = 'block';
-                document.getElementById('z_dedPercent').value = item.percent || '';
-                z_updatePercentDetail();
-            }
-            document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn => {
-                if (btn.dataset.subtype === z_dedSubType) btn.classList.add('z_active');
-                else btn.classList.remove('z_active');
-            });
-        } else if (z_leaveDeds.includes(item.name)) {
+        
+        if (!isSocialOrFund && z_leaveDeds.includes(item.name)) {
             document.getElementById('z_leaveSubSwitch').style.display = 'flex';
             document.getElementById('z_leaveHourArea').style.display = 'block';
             z_hourAuto = (item.autoHours !== undefined) ? item.autoHours : true;
@@ -2480,6 +2552,7 @@
                 btn.classList.add('z_selected');
                 let name = btn.dataset.name;
                 z_selectedType = name;
+                const isSocialOrFund = (name === '社保扣款' || name === '公积金扣款');
                 document.getElementById('z_dedSubSwitch').style.display = 'none';
                 document.getElementById('z_leaveSubSwitch').style.display = 'none';
                 document.getElementById('z_leaveHourArea').style.display = 'none';
@@ -2492,14 +2565,8 @@
                 z_dedSubType = 'fixed';
                 z_hourAuto = true;
                 z_leaveSubType = 'fixed';
-                if (z_percentDeds.includes(name)) {
-                    document.getElementById('z_dedSubSwitch').style.display = 'flex';
-                    document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn2 => {
-                        if (btn2.dataset.subtype === 'fixed') btn2.classList.add('z_active');
-                        else btn2.classList.remove('z_active');
-                    });
-                    document.getElementById('z_dedUnit').innerText = '元/月';
-                } else if (z_leaveDeds.includes(name)) {
+                
+                if (!isSocialOrFund && z_leaveDeds.includes(name)) {
                     document.getElementById('z_leaveSubSwitch').style.display = 'flex';
                     document.getElementById('z_leaveHourArea').style.display = 'block';
                     document.querySelectorAll('#z_leaveSubSwitch .z_subCalcSwitchBtn').forEach(btn2 => {
@@ -2523,6 +2590,8 @@
             btn.onclick = () => z_showToast("该项目已添加，不可重复添加");
         });
     }
+    
+    const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
     
     function z_openAddDed() {
         z_editTarget = null; z_isEditing = false;
@@ -2571,17 +2640,11 @@
         }
         let amount = 0;
         let newItem = { name: finalName, customName: (z_selectedType === '其它项目' || !z_deductionOpts.includes(finalName)) ? finalName : undefined };
-        if (z_percentDeds.includes(finalName)) {
-            newItem.subType = z_dedSubType;
-            if (z_dedSubType === 'fixed') {
-                amount = parseFloat(document.getElementById('z_dedAmount').value) || 0;
-            } else {
-                let p = parseFloat(document.getElementById('z_dedPercent').value) || 0;
-                amount = baseSalary * p / 100;
-                newItem.percent = p;
-            }
-            newItem.amount = amount;
-        } else if (z_leaveDeds.includes(finalName)) {
+        
+        // 社保和公积金只支持固定金额
+        const isSocialOrFund = (finalName === '社保扣款' || finalName === '公积金扣款');
+        
+        if (!isSocialOrFund && z_leaveDeds.includes(finalName)) {
             newItem.leaveSubType = z_leaveSubType;
             newItem.autoHours = z_hourAuto;
             let hours = z_hourAuto ? z_getAutoHoursForDed() : (parseFloat(document.getElementById('z_dedHours').value) || 0);
@@ -2645,7 +2708,7 @@
                 else if (r.type === "salary") salaryIncome += r.amount || 0;
                 
                 if (r.shift === "休息") {
-                    if (r.type === "rest" || r.type === "vacation" || r.type === "paid") {
+                    if (r.type === "vacation" || r.type === "rest") {
                         monthRestDays++;
                     }
                     if (r.type === "personal" || r.type === "sick") {
@@ -3058,12 +3121,12 @@
         if (!rec) return null; 
         if (rec.shift === "休息") { 
             let hours = rec.hours || 0; 
-            let typeMap = { "vacation": "休", "personal": "事", "sick": "病", "paid": "薪" }; 
+            let typeMap = { "vacation": "休", "personal": "事", "sick": "病", "paid": "薪", "rest": "休" }; 
             let prefix = typeMap[rec.type] || "休"; 
-            let classMap = { "vacation": "vacation", "personal": "personal", "sick": "sick", "paid": "paid" }; 
+            let classMap = { "vacation": "vacation", "personal": "personal", "sick": "sick", "paid": "paid", "rest": "rest" }; 
             let tagClass = classMap[rec.type] || "rest"; 
             if (hours > 0) return { text: `${prefix} ${hours.toFixed(1)}h`, class: tagClass }; 
-            let nameMap = { "vacation": "休假", "personal": "事假", "sick": "病假", "paid": "薪假" }; 
+            let nameMap = { "vacation": "休假", "personal": "事假", "sick": "病假", "paid": "薪假", "rest": "休息" }; 
             return { text: nameMap[rec.type] || "休息", class: tagClass }; 
         } 
         if (rec.type === "salary") return { text: `¥${Math.round(rec.amount || 0)}`, class: "salary" }; 
@@ -3108,6 +3171,20 @@
         if (dayOfWeek === 0 || dayOfWeek === 6) return false;
         if (tiaoxiu.isJiaban) return true;
         return true;
+    }
+    
+    // 批量模式获取每个日期的默认类型
+    function getDefaultTypeForDate(dateStr) {
+        let [year, month, day] = dateStr.split('-').map(Number);
+        let tiaoxiu = getTiaoxiu(year, dateStr);
+        let isHoliday = isStatutoryHoliday(year, month, day);
+        if (isHoliday) return "holiday";
+        if (tiaoxiu.isFangjia) return "weekend";
+        if (tiaoxiu.isJiaban) return "workday";
+        let date = new Date(dateStr);
+        let dayOfWeek = date.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return "weekend";
+        return "workday";
     }
     
     function shouldTriggerSwap() {
@@ -3401,7 +3478,13 @@
         let count = selectedDatesSet.size;
         for (let dateStr of selectedDatesSet) {
             let existingIdx = records.findIndex(r => r.date === dateStr);
-            let newRec = { ...rec, date: dateStr, id: Date.now() + "-" + Math.random() + "-" + dateStr };
+            // 批量模式下，每个日期单独计算加班类型
+            let finalType = rec.type;
+            if (currentShift !== "休息" && rec.type !== "salary") {
+                // 根据每个日期的实际情况获取类型
+                finalType = getDefaultTypeForDate(dateStr);
+            }
+            let newRec = { ...rec, date: dateStr, type: finalType, id: Date.now() + "-" + Math.random() + "-" + dateStr };
             if (existingIdx >= 0) records[existingIdx] = newRec;
             else records.push(newRec);
         }
@@ -3485,6 +3568,7 @@
         document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
         isEditMode = false;
         currentShift = lockedShift || "白班";
+        // 批量模式默认类型设为 workday，但保存时会根据每个日期单独计算
         currentType = "workday";
         currentHours = 0;
         currentAmount = 0;
@@ -3649,8 +3733,8 @@
         const typeFormLabel = document.getElementById("typeFormLabel"); 
         if (currentShift === "休息") { 
             typeFormLabel.innerText = "请假类型"; 
-            typeNav.innerHTML = `<div class="type-nav-item" data-type="vacation">休假</div><div class="type-nav-item" data-type="personal">事假</div><div class="type-nav-item" data-type="sick">病假</div><div class="type-nav-item" data-type="paid">薪假</div>`; 
-            if (!["vacation","personal","sick","paid"].includes(currentType)) currentType = "vacation"; 
+            typeNav.innerHTML = `<div class="type-nav-item" data-type="vacation">休假</div><div class="type-nav-item" data-type="personal">事假</div><div class="type-nav-item" data-type="sick">病假</div><div class="type-nav-item" data-type="paid">薪假</div><div class="type-nav-item" data-type="rest">休息</div>`; 
+            if (!["vacation","personal","sick","paid","rest"].includes(currentType)) currentType = "vacation"; 
             document.getElementById("timeLabel").innerText = "请假时长"; 
         } else { 
             typeFormLabel.innerText = "加班类型"; 
@@ -4169,7 +4253,7 @@
         selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
         loadDataForCurrentMonth();
         
-        // 等待 lunar.js 加载完成（tiaoxiu.js 已通过 script 标签同步加载，不需要等待）
+        // 等待 lunar.js 加载完成
         await waitForLunar();
         
         // 直接渲染日历
@@ -4247,6 +4331,10 @@
         document.getElementById("helpBtn").onclick = showHelpSubPage;
         document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
         
+        // 补贴/扣款收起展开事件绑定
+        document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
+        document.getElementById("deductionHeader").onclick = toggleDeductionExpand;
+        
         document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('#z_calcSwitch .z_calcSwitchBtn').forEach(b => b.classList.remove('z_active')); btn.classList.add('z_active'); z_switchCalc(btn.dataset.type); }; });
         document.getElementById("z_dayToggle").onclick = z_toggleDayAuto;
         document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('#z_dedSubSwitch .z_subCalcSwitchBtn').forEach(b => b.classList.remove('z_active')); btn.classList.add('z_active'); z_dedSubType = btn.dataset.subtype; if (z_dedSubType === 'fixed') { document.getElementById('z_dedFixedArea').style.display = 'block'; document.getElementById('z_dedPercentArea').style.display = 'none'; document.getElementById('z_dedUnit').innerText = '元/月'; } else { document.getElementById('z_dedFixedArea').style.display = 'none'; document.getElementById('z_dedPercentArea').style.display = 'block'; z_updatePercentDetail(); } }; });
@@ -4257,6 +4345,10 @@
         let displayName = (currentSalaryMethodName && currentSalaryMethodName !== "暂未设置计薪方式") ? currentSalaryMethodName : "暂未设置计薪方式";
         document.getElementById("salaryMethodDisplay").innerText = displayName;
         document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按出勤算' : '按月发薪';
+        
+        // 初始化收起展开状态
+        updateSubsidyExpandState();
+        updateDeductionExpandState();
         
         switchPage("calendar");
         checkFirstUse();
