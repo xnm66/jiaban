@@ -503,7 +503,6 @@
             border-bottom: 1px solid #eef2f6;
             cursor: pointer;
         }
-        .subded-header:active { background: #f0f2f5; }
         .subded-header h3 {
             font-size: 0.75rem;
             font-weight: 600;
@@ -607,7 +606,9 @@
             font-size: 0.7rem;
             color: #606266;
             min-height: 48px;
+            cursor: pointer;
         }
+        .version-card:active { background: #f5f7fa; }
         .version-label {
             font-weight: 600;
             color: #909399;
@@ -1454,6 +1455,21 @@
         .settings-item.clear-data .settings-label {
             color: #f56c6c;
         }
+        
+        /* 批量模式类型标签 */
+        .batch-type-indicator {
+            background: #e6f7ff;
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 0.7rem;
+            color: #0099ff;
+            text-align: center;
+        }
+        .batch-type-indicator.auto {
+            background: #fff7e6;
+            color: #fa8c16;
+        }
     </style>
     <script src="./lunar.js"></script>
     <script src="./tiaoxiu.js"></script>
@@ -1548,7 +1564,7 @@
                 </div>
             </div>
             
-            <div class="version-card">
+            <div class="version-card" id="versionCard">
                 <span class="version-label">📦 当前版本</span>
                 <span class="version-number" id="appVersion">获取中...</span>
             </div>
@@ -1607,6 +1623,7 @@
                 <p>• <span class="highlight">导入/导出</span>：备份或恢复数据到本地文件</p>
                 <p>• <span class="highlight">清除所有数据</span>：删除全部记录和设置（不可恢复）</p>
                 <p>• <span class="highlight">复用上月数据</span>：一键复制上月的补贴扣款设置</p>
+                <p>• <span class="highlight">点击版本号</span>：检查更新并刷新页面</p>
             </div>
         </div>
         <div class="help-section">
@@ -1633,7 +1650,7 @@
                 <p>• 补贴支持<span class="highlight">按月计算</span>或<span class="highlight">按天计算</span></p>
                 <p>• 夜班补贴可自动获取夜班天数</p>
                 <p>• 全勤奖会自动计算，请假后归零</p>
-                <p>• 社保等扣款支持<span class="highlight">固定金额</span>或<span class="highlight">按百分比</span></p>
+                <p>• 社保等扣款支持<span class="highlight">固定金额</span></p>
                 <p>• 事假/病假扣款支持<span class="highlight">自动获取请假时长</span>，按小时扣款</p>
             </div>
         </div>
@@ -1664,6 +1681,7 @@
 <div id="bottomDrawer" class="bottom-drawer">
     <div class="drawer-header"><span class="drawer-date-title" id="drawerDateTitle">2026年5月30日</span><button class="close-drawer-btn" id="closeDrawerBtn">✕</button></div>
     <div class="drawer-body">
+        <div id="batchTypeIndicator" class="batch-type-indicator" style="display: none;"></div>
         <div class="form-row"><div class="form-label">班次</div><div class="shift-switch" id="shiftSwitch"><div class="shift-option" data-shift="白班">☀️ 白班</div><div class="shift-option" data-shift="晚班">🌙 晚班</div><div class="shift-option" data-shift="休息">😴 休息</div></div></div>
         <div class="overtime-section"><div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div><div class="overtime-card"><div class="type-nav" id="typeNav"><div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div></div><div class="time-control-wrapper" id="timeControlWrapper"><span class="time-label" id="timeLabel">加班时长</span><div class="time-control" id="timeControl"><div class="time-btn-circle" id="timeMinusBtn">−</div><input type="text" id="timeInput" class="time-input" value="0.0" inputmode="decimal" pattern="[0-9]*\.?[0-9]*"><div class="time-btn-circle" id="timePlusBtn">+</div><div class="amount-input-wrapper" id="amountInputWrapper" style="display: none;"><span>¥</span><input type="text" id="amountInput" placeholder="金额" value=""></div></div></div></div></div></div>
         <div class="scroll-hint-top" id="scrollHint">↓ 下滑查看更多时间选项 ↓</div>
@@ -1716,7 +1734,6 @@
                 <span class="z_bigCardLabel">项目名称</span>
                 <div class="z_inputWrapper"><input type="text" id="z_dedName" class="z_inputField" placeholder="请输入名称"></div>
             </div>
-            <!-- 社保和公积金不再显示百分比切换按钮，所以隐藏这个区域 -->
             <div class="z_subCalcSwitch" id="z_dedSubSwitch" style="display: none;">
                 <div class="z_subCalcSwitchBtn z_active" data-subtype="fixed">按月固定</div>
                 <div class="z_subCalcSwitchBtn" data-subtype="percent">按百分比</div>
@@ -1814,7 +1831,7 @@
     let isMultiSelectMode = false;
     let selectedDatesSet = new Set();
     let longPressTimer = null;
-    let longPressIncomeTimer = null;  // 用于区分长按工资区域的定时器
+    let longPressIncomeTimer = null;
     
     let showYearStats = false;
     
@@ -1833,6 +1850,9 @@
     // 补贴/扣款项收起展开状态持久化
     let subsidyExpanded = localStorage.getItem("subsidyExpanded") !== 'false';
     let deductionExpanded = localStorage.getItem("deductionExpanded") !== 'false';
+    
+    // 批量模式类型统计
+    let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
     
     // tiaoxiuData 由 tiaoxiu.js 提供全局变量
     // 获取版本号
@@ -1856,6 +1876,40 @@
             }
         } catch(e) {
             document.getElementById('appVersion').innerText = 'v1.0.0';
+        }
+    }
+    
+    // 点击版本卡片强制更新缓存
+    async function forceUpdateCache() {
+        showToast("🔄 正在检查更新...");
+        try {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                // 发送消息给 Service Worker 跳过等待并激活
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration && registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    showToast("✅ 发现新版本，正在更新...");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    // 尝试检查更新
+                    await registration.update();
+                    showToast("✅ 已检查更新，即将刷新");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                }
+            } else {
+                // 不支持 Service Worker，直接刷新
+                showToast("🔄 正在刷新页面...");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 300);
+            }
+        } catch(e) {
+            console.error("更新失败:", e);
+            showToast("❌ 更新失败，请手动刷新");
         }
     }
     
@@ -1959,9 +2013,9 @@
     let z_editTarget = null, z_isEditing = false, z_selectedType = null, z_calcType = 'month', z_customName = '', z_dayAuto = true, z_dedSubType = 'fixed', z_hourAuto = true, z_leaveSubType = 'fixed';
     const z_subsidyOpts = ['伙食补贴', '夜班补贴', '高温补贴', '绩效补贴', '住房补贴', '全勤奖', '岗位补贴', '工龄补贴', '其它项目'];
     const z_fullAttend = ['全勤奖'];
-    // 社保和公积金不再显示百分比选项
     const z_percentDeds = [];
     const z_leaveDeds = ['事假扣款', '病假扣款'];
+    const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
     
     function formatMoney(value) {
         if (value === undefined || value === null) return '0';
@@ -2114,7 +2168,6 @@
         document.getElementById("settingsSubTotal").innerText = "+¥" + formatMoney(subTotal);
         document.getElementById("settingsDedTotal").innerText = "-¥" + formatMoney(dedTotal);
         
-        // 渲染补贴列表
         let subHtml = '';
         settingsAllowances.forEach((item, idx) => {
             subHtml += `<div class="subded-item" data-idx="${idx}" data-type="subsidy"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#2e7d32">+¥${formatMoney(item.amount)}</div></div>`;
@@ -2128,7 +2181,6 @@
             el.ontouchmove = z_cancelTimer;
         });
         
-        // 渲染扣款列表
         let dedHtml = '';
         settingsDeductions.forEach((item, idx) => {
             dedHtml += `<div class="subded-item" data-idx="${idx}" data-type="deduction"><div class="subded-name">${z_escape(item.name)}</div><div class="subded-amount" style="color:#c62828">-¥${formatMoney(item.amount)}</div></div>`;
@@ -2142,14 +2194,12 @@
             el.ontouchmove = z_cancelTimer;
         });
         
-        // 设置收起展开状态
         updateSubsidyExpandState();
         updateDeductionExpandState();
         
         updateIncomeCardDisplay();
     }
     
-    // 更新补贴区域的展开/收起状态
     function updateSubsidyExpandState() {
         const listContainer = document.getElementById("subsidyListContainer");
         const arrow = document.getElementById("subsidyArrow");
@@ -2264,7 +2314,6 @@
         if (bigCard) bigCard.style.marginTop = '0';
         
         z_selectedType = item.name;
-        // 社保和公积金不再显示百分比选项，直接显示固定金额
         const isSocialOrFund = (item.name === '社保扣款' || item.name === '公积金扣款');
         document.getElementById('z_dedSubSwitch').style.display = 'none';
         document.getElementById('z_leaveSubSwitch').style.display = 'none';
@@ -2591,8 +2640,6 @@
         });
     }
     
-    const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
-    
     function z_openAddDed() {
         z_editTarget = null; z_isEditing = false;
         document.getElementById('z_dedTitle').innerText = "新增扣款";
@@ -2641,7 +2688,6 @@
         let amount = 0;
         let newItem = { name: finalName, customName: (z_selectedType === '其它项目' || !z_deductionOpts.includes(finalName)) ? finalName : undefined };
         
-        // 社保和公积金只支持固定金额
         const isSocialOrFund = (finalName === '社保扣款' || finalName === '公积金扣款');
         
         if (!isSocialOrFund && z_leaveDeds.includes(finalName)) {
@@ -3146,7 +3192,6 @@
     
     function stopAllRotate() { for (let [div, timer] of cellRotateTimers) clearInterval(timer); cellRotateTimers.clear(); cellRotateIndex.clear(); }
     
-    // 修复 getTiaoxiu 函数 - 直接从全局变量读取
     function getTiaoxiu(year, dateStr) {
         if (typeof tiaoxiuData === 'undefined') {
             return { isFangjia: false, isJiaban: false };
@@ -3185,6 +3230,39 @@
         let dayOfWeek = date.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) return "weekend";
         return "workday";
+    }
+    
+    // 批量模式下分析选择日期的类型分布
+    function analyzeBatchDatesType() {
+        let stats = { workday: 0, weekend: 0, holiday: 0 };
+        for (let dateStr of selectedDatesSet) {
+            let type = getDefaultTypeForDate(dateStr);
+            if (type === "workday") stats.workday++;
+            else if (type === "weekend") stats.weekend++;
+            else if (type === "holiday") stats.holiday++;
+        }
+        batchTypeStats = stats;
+        return stats;
+    }
+    
+    // 获取批量模式的提示文本
+    function getBatchTypeHint() {
+        let stats = batchTypeStats;
+        let total = stats.workday + stats.weekend + stats.holiday;
+        if (total === 0) return "";
+        
+        let types = [];
+        if (stats.workday > 0) types.push(`${stats.workday}个工作日`);
+        if (stats.weekend > 0) types.push(`${stats.weekend}个周末`);
+        if (stats.holiday > 0) types.push(`${stats.holiday}个节假日`);
+        
+        if (types.length === 1) {
+            let typeMap = { workday: "正常班", weekend: "周末加班", holiday: "节假日加班" };
+            let singleType = stats.workday > 0 ? "workday" : (stats.weekend > 0 ? "weekend" : "holiday");
+            return `📌 已选 ${types[0]}，将记录为「${typeMap[singleType]}」`;
+        } else {
+            return `📌 已选 ${types.join('、')}，将自动匹配对应加班类型`;
+        }
     }
     
     function shouldTriggerSwap() {
@@ -3481,7 +3559,6 @@
             // 批量模式下，每个日期单独计算加班类型
             let finalType = rec.type;
             if (currentShift !== "休息" && rec.type !== "salary") {
-                // 根据每个日期的实际情况获取类型
                 finalType = getDefaultTypeForDate(dateStr);
             }
             let newRec = { ...rec, date: dateStr, type: finalType, id: Date.now() + "-" + Math.random() + "-" + dateStr };
@@ -3565,10 +3642,32 @@
     
     function openDrawerForBatch() {
         if (selectedDatesSet.size === 0) { showToast("请先选择日期"); return; }
+        
+        // 分析选择的日期类型分布
+        analyzeBatchDatesType();
+        let typeHint = getBatchTypeHint();
+        
         document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
+        const batchIndicator = document.getElementById("batchTypeIndicator");
+        if (typeHint) {
+            batchIndicator.style.display = "block";
+            batchIndicator.innerHTML = typeHint;
+            // 根据是否单一类型设置样式
+            if (batchTypeStats.workday > 0 && batchTypeStats.weekend === 0 && batchTypeStats.holiday === 0) {
+                batchIndicator.className = "batch-type-indicator";
+            } else if (batchTypeStats.weekend > 0 && batchTypeStats.workday === 0 && batchTypeStats.holiday === 0) {
+                batchIndicator.className = "batch-type-indicator";
+            } else if (batchTypeStats.holiday > 0 && batchTypeStats.workday === 0 && batchTypeStats.weekend === 0) {
+                batchIndicator.className = "batch-type-indicator";
+            } else {
+                batchIndicator.className = "batch-type-indicator auto";
+            }
+        } else {
+            batchIndicator.style.display = "none";
+        }
+        
         isEditMode = false;
         currentShift = lockedShift || "白班";
-        // 批量模式默认类型设为 workday，但保存时会根据每个日期单独计算
         currentType = "workday";
         currentHours = 0;
         currentAmount = 0;
@@ -3885,6 +3984,8 @@
         if (!hasSalaryConfig) { showToast("请先在设置页面中设置薪资方式"); return; }
         let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
         document.getElementById("drawerDateTitle").innerHTML = `${year}年${month}月${day}日`; 
+        // 隐藏批量提示
+        document.getElementById("batchTypeIndicator").style.display = "none";
         let existing = getDayRecords(selectedDate)[0]; 
         let tiaoxiu = getTiaoxiu(currentYear, selectedDate); 
         if (existing) { 
@@ -4331,7 +4432,10 @@
         document.getElementById("helpBtn").onclick = showHelpSubPage;
         document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
         
-        // 补贴/扣款收起展开事件绑定
+        // 版本卡片点击强制更新缓存
+        document.getElementById("versionCard").onclick = forceUpdateCache;
+        
+        // 补贴/扣款收起展开事件绑定（去掉按下效果）
         document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
         document.getElementById("deductionHeader").onclick = toggleDeductionExpand;
         
