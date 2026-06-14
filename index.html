@@ -757,8 +757,17 @@
         .type-nav { display: flex; gap: 0; background: #fff; padding: 4px; border-bottom: 1px solid #f0f0f0; }
         .type-nav-item { flex: 1; text-align: center; padding: 10px 0; font-size: 0.7rem; font-weight: 500; color: #606266; cursor: pointer; border-radius: 8px; background: #fff; }
         .type-nav-item.active { background: #66b3ff; color: white; }
-        .type-nav-item.disabled { background: #f5f5f5; color: #ccc; cursor: not-allowed; }
-        .type-nav-item.disabled:active { transform: none; background: #f5f5f5; }
+        .type-nav-item.disabled { background: #e0e0e0; color: #999; cursor: not-allowed; opacity: 0.6; }
+        .type-nav-item.disabled:active { transform: none; background: #e0e0e0; }
+        .smart-match-hint {
+            background: #fff7e6;
+            border-radius: 8px;
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            font-size: 0.6rem;
+            color: #fa8c16;
+            text-align: center;
+        }
         .time-control-wrapper { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 8px 10px; }
         .time-label { font-size: 0.68rem; color: #606266; }
         .time-control { display: flex; align-items: center; gap: 8px; }
@@ -1460,21 +1469,6 @@
         .settings-item.clear-data .settings-label {
             color: #f56c6c;
         }
-        
-        /* 批量模式智能匹配提示 */
-        .batch-type-indicator {
-            background: #e6f7ff;
-            border-radius: 12px;
-            padding: 8px 12px;
-            margin-bottom: 12px;
-            font-size: 0.7rem;
-            color: #0099ff;
-            text-align: center;
-        }
-        .batch-type-indicator.mixed {
-            background: #fff7e6;
-            color: #fa8c16;
-        }
     </style>
     <script src="./lunar.js"></script>
     <script src="./tiaoxiu.js"></script>
@@ -1686,9 +1680,15 @@
 <div id="bottomDrawer" class="bottom-drawer">
     <div class="drawer-header"><span class="drawer-date-title" id="drawerDateTitle">2026年5月30日</span><button class="close-drawer-btn" id="closeDrawerBtn">✕</button></div>
     <div class="drawer-body">
-        <div id="batchTypeIndicator" class="batch-type-indicator" style="display: none;"></div>
         <div class="form-row"><div class="form-label">班次</div><div class="shift-switch" id="shiftSwitch"><div class="shift-option" data-shift="白班">☀️ 白班</div><div class="shift-option" data-shift="晚班">🌙 晚班</div><div class="shift-option" data-shift="休息">😴 休息</div></div></div>
-        <div class="overtime-section"><div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div><div class="overtime-card"><div class="type-nav" id="typeNav"><div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div></div><div class="time-control-wrapper" id="timeControlWrapper"><span class="time-label" id="timeLabel">加班时长</span><div class="time-control" id="timeControl"><div class="time-btn-circle" id="timeMinusBtn">−</div><input type="text" id="timeInput" class="time-input" value="0.0" inputmode="decimal" pattern="[0-9]*\.?[0-9]*"><div class="time-btn-circle" id="timePlusBtn">+</div><div class="amount-input-wrapper" id="amountInputWrapper" style="display: none;"><span>¥</span><input type="text" id="amountInput" placeholder="金额" value=""></div></div></div></div></div></div>
+        <div class="overtime-section">
+            <div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div>
+            <div class="overtime-card">
+                <div id="smartMatchHint" class="smart-match-hint" style="display: none;">🤖 智能匹配模式（将根据日期类型自动选择加班类型）</div>
+                <div class="type-nav" id="typeNav"><div class="type-nav-item" data-type="workday">正常班</div><div class="type-nav-item" data-type="weekend">周末</div><div class="type-nav-item" data-type="holiday">节假日</div><div class="type-nav-item" data-type="salary">日结</div></div>
+                <div class="time-control-wrapper" id="timeControlWrapper"><span class="time-label" id="timeLabel">加班时长</span><div class="time-control" id="timeControl"><div class="time-btn-circle" id="timeMinusBtn">−</div><input type="text" id="timeInput" class="time-input" value="0.0" inputmode="decimal" pattern="[0-9]*\.?[0-9]*"><div class="time-btn-circle" id="timePlusBtn">+</div><div class="amount-input-wrapper" id="amountInputWrapper" style="display: none;"><span>¥</span><input type="text" id="amountInput" placeholder="金额" value=""></div></div></div>
+            </div></div>
+        </div>
         <div class="scroll-hint-top" id="scrollHint">↓ 下滑查看更多时间选项 ↓</div>
         <div class="time-options-container" id="timeOptionsContainer"><div class="time-grid" id="timeGrid"></div><div class="amount-grid" id="amountGrid" style="display: none;"></div></div>
         <div class="remark-wrapper"><div class="remark-label">📝 写点什么</div><textarea id="remarkInput" class="remark-input" rows="2" placeholder="今天记点什么好呢？"></textarea></div>
@@ -1885,31 +1885,35 @@
         }
     }
     
-    // 点击版本卡片强制更新缓存
+    // 点击版本卡片强制更新缓存 - 优化版
     async function forceUpdateCache() {
         showToast("🔄 正在检查更新...");
         try {
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                const registration = await navigator.serviceWorker.getRegistration();
-                if (registration && registration.waiting) {
-                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    showToast("✅ 发现新版本，正在更新...");
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 500);
-                } else {
-                    await registration.update();
-                    showToast("✅ 已检查更新，即将刷新");
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 500);
+            // 方法1: 清除所有缓存
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                for (const cacheName of cacheNames) {
+                    await caches.delete(cacheName);
                 }
-            } else {
-                showToast("🔄 正在刷新页面...");
-                setTimeout(() => {
-                    window.location.reload();
-                }, 300);
+                console.log('所有缓存已清除');
             }
+            
+            // 方法2: 强制更新 Service Worker
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.update();
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                }
+            }
+            
+            showToast("✅ 更新成功，即将刷新页面");
+            setTimeout(() => {
+                window.location.reload(true); // 强制从服务器重新加载
+            }, 500);
+            
         } catch(e) {
             console.error("更新失败:", e);
             showToast("❌ 更新失败，请手动刷新");
@@ -3256,68 +3260,6 @@
         return { stats, mode: batchTypeMode };
     }
     
-    // 获取批量模式的提示文本和推荐的加班类型
-    function getBatchTypeHint() {
-        let stats = batchTypeStats;
-        let total = stats.workday + stats.weekend + stats.holiday;
-        if (total === 0) return { text: "", recommendedType: "workday", isMixed: false };
-        
-        if (batchTypeMode === "workday") {
-            return { text: `📌 已选 ${stats.workday}个工作日，将记录为「正常班」`, recommendedType: "workday", isMixed: false };
-        } else if (batchTypeMode === "weekend") {
-            return { text: `📌 已选 ${stats.weekend}个周末，将记录为「周末加班」`, recommendedType: "weekend", isMixed: false };
-        } else if (batchTypeMode === "holiday") {
-            return { text: `📌 已选 ${stats.holiday}个节假日，将记录为「节假日加班」`, recommendedType: "holiday", isMixed: false };
-        } else {
-            let parts = [];
-            if (stats.workday > 0) parts.push(`${stats.workday}个工作日`);
-            if (stats.weekend > 0) parts.push(`${stats.weekend}个周末`);
-            if (stats.holiday > 0) parts.push(`${stats.holiday}个节假日`);
-            return { text: `📌 已选 ${parts.join('、')}，将智能匹配对应加班类型`, recommendedType: "auto", isMixed: true };
-        }
-    }
-    
-    // 更新批量模式下的加班类型选项UI
-    function updateBatchTypeNav() {
-        const typeNav = document.getElementById("typeNav");
-        const typeItems = typeNav.querySelectorAll(".type-nav-item");
-        
-        if (batchTypeMode === "mixed") {
-            // 混合模式：所有选项禁用，显示智能匹配
-            typeItems.forEach(item => {
-                item.classList.add("disabled");
-                if (item.getAttribute("data-type") !== "salary") {
-                    item.style.opacity = "0.5";
-                }
-            });
-            // 添加智能匹配提示（如果还没有）
-            let existingHint = document.getElementById("smartMatchHint");
-            if (!existingHint && currentShift !== "休息") {
-                let hint = document.createElement("div");
-                hint.id = "smartMatchHint";
-                hint.className = "batch-type-indicator mixed";
-                hint.style.marginTop = "8px";
-                hint.style.marginBottom = "0";
-                hint.style.padding = "6px 12px";
-                hint.style.fontSize = "0.65rem";
-                hint.innerHTML = "🤖 智能匹配：根据每个日期的实际类型自动选择加班类型";
-                typeNav.parentNode.insertBefore(hint, typeNav.nextSibling);
-            }
-        } else {
-            // 单一模式：启用所有选项，高亮推荐的选项
-            typeItems.forEach(item => {
-                item.classList.remove("disabled");
-                item.style.opacity = "1";
-                if (batchTypeMode !== "auto" && item.getAttribute("data-type") === batchTypeMode) {
-                    item.classList.add("active");
-                    currentType = batchTypeMode;
-                }
-            });
-            let existingHint = document.getElementById("smartMatchHint");
-            if (existingHint) existingHint.remove();
-        }
-    }
-    
     function shouldTriggerSwap() {
         if (!isMultiSelectMode || selectedDatesSet.size !== 2) return false;
         let dates = Array.from(selectedDatesSet);
@@ -3705,17 +3647,8 @@
         
         // 分析选择的日期类型分布
         let { mode } = analyzeBatchDatesType();
-        let hint = getBatchTypeHint();
         
         document.getElementById("drawerDateTitle").innerHTML = `批量记录 (${selectedDatesSet.size}天)`;
-        const batchIndicator = document.getElementById("batchTypeIndicator");
-        if (hint.text) {
-            batchIndicator.style.display = "block";
-            batchIndicator.innerHTML = hint.text;
-            batchIndicator.className = hint.isMixed ? "batch-type-indicator mixed" : "batch-type-indicator";
-        } else {
-            batchIndicator.style.display = "none";
-        }
         
         isEditMode = false;
         currentShift = lockedShift || "白班";
@@ -3728,7 +3661,7 @@
         } else if (mode === "holiday") {
             currentType = "holiday";
         } else {
-            currentType = "workday"; // 混合模式默认值，但会被保存时的逻辑覆盖
+            currentType = "workday"; // 混合模式默认值
         }
         
         currentHours = 0;
@@ -3740,46 +3673,27 @@
         updateTypeNavByShift();
         
         // 更新加班类型选项UI
+        const smartMatchHint = document.getElementById("smartMatchHint");
+        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        
         if (mode === "mixed") {
-            // 混合模式：禁用加班类型选项
-            const typeNav = document.getElementById("typeNav");
-            const typeItems = typeNav.querySelectorAll(".type-nav-item");
+            // 混合模式：显示提示，禁用所有加班类型按钮
+            smartMatchHint.style.display = "block";
             typeItems.forEach(item => {
                 item.classList.add("disabled");
-                if (item.getAttribute("data-type") !== "salary") {
-                    item.style.opacity = "0.5";
-                }
-                // 移除高亮
                 item.classList.remove("active");
             });
-            // 添加智能匹配提示
-            let existingHint = document.getElementById("smartMatchHint");
-            if (!existingHint && currentShift !== "休息") {
-                let hintDiv = document.createElement("div");
-                hintDiv.id = "smartMatchHint";
-                hintDiv.className = "batch-type-indicator mixed";
-                hintDiv.style.marginTop = "8px";
-                hintDiv.style.marginBottom = "0";
-                hintDiv.style.padding = "6px 12px";
-                hintDiv.style.fontSize = "0.65rem";
-                hintDiv.innerHTML = "🤖 智能匹配：根据每个日期的实际类型自动选择加班类型";
-                typeNav.parentNode.insertBefore(hintDiv, typeNav.nextSibling);
-            }
-        } else if (mode !== "auto") {
-            // 单一模式：高亮对应的类型
-            const typeNav = document.getElementById("typeNav");
-            const typeItems = typeNav.querySelectorAll(".type-nav-item");
+        } else {
+            // 单一模式：隐藏提示，启用按钮，高亮当前类型
+            smartMatchHint.style.display = "none";
             typeItems.forEach(item => {
                 item.classList.remove("disabled");
-                item.style.opacity = "1";
                 if (item.getAttribute("data-type") === currentType) {
                     item.classList.add("active");
                 } else {
                     item.classList.remove("active");
                 }
             });
-            let existingHint = document.getElementById("smartMatchHint");
-            if (existingHint) existingHint.remove();
         }
         
         document.querySelectorAll("#shiftSwitch .shift-option").forEach(btn => btn.classList.remove("active"));
@@ -4096,7 +4010,14 @@
         let date = new Date(selectedDate), year = date.getFullYear(), month = date.getMonth() + 1, day = date.getDate(); 
         document.getElementById("drawerDateTitle").innerHTML = `${year}年${month}月${day}日`; 
         // 隐藏批量提示
-        document.getElementById("batchTypeIndicator").style.display = "none";
+        const smartMatchHint = document.getElementById("smartMatchHint");
+        smartMatchHint.style.display = "none";
+        // 恢复类型选项样式
+        const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
+        typeItems.forEach(item => {
+            item.classList.remove("disabled");
+        });
+        
         let existing = getDayRecords(selectedDate)[0]; 
         let tiaoxiu = getTiaoxiu(currentYear, selectedDate); 
         if (existing) { 
@@ -4170,14 +4091,12 @@
         document.getElementById("drawerMask").style.display = "none"; 
         isEditMode = false; 
         updateLockUI(); 
-        // 清理批量模式相关的提示
-        let existingHint = document.getElementById("smartMatchHint");
-        if (existingHint) existingHint.remove();
-        // 恢复类型选项样式
+        // 清理批量模式相关的状态
+        const smartMatchHint = document.getElementById("smartMatchHint");
+        if (smartMatchHint) smartMatchHint.style.display = "none";
         const typeItems = document.querySelectorAll("#typeNav .type-nav-item");
         typeItems.forEach(item => {
             item.classList.remove("disabled");
-            item.style.opacity = "1";
         });
         batchTypeMode = "auto";
     }
