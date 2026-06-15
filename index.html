@@ -1549,7 +1549,7 @@
         <div class="settings-container">
             <div class="income-display-card" id="incomeCard">
                 <div class="income-display-label" id="incomeCardLabel">本月预估收入</div>
-                <div class="income-display-amount" id="settingsMonthIncome">0</div>
+                <div class="income-display-amount" id="settingsMonthIncome">0.00</div>
                 <div class="income-display-details" id="incomeCardDetails">
                     <span>底薪: <strong id="settingsBaseSalary">0.00</strong></span>
                     <span>加班: <strong id="settingsOvertime">0.00</strong></span>
@@ -1915,9 +1915,11 @@
     let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
     let batchTypeMode = "auto";
     
+    // 版本记录
+    let lastKnownVersion = localStorage.getItem("lastKnownVersion") || "";
+    
     // ==================== 版本更新提示 ====================
     function showVersionToast(version) {
-        // 移除已有的提示
         let existing = document.querySelector('.version-toast');
         if (existing) existing.remove();
         
@@ -1941,10 +1943,12 @@
         const currentVersion = document.getElementById("appVersion").innerText;
         const savedVersion = localStorage.getItem("lastKnownVersion");
         
+        // 版本不同且不是初始状态才提示
         if (savedVersion && savedVersion !== currentVersion && currentVersion !== "获取中..." && currentVersion !== "v1.0.0") {
             showVersionToast(currentVersion);
         }
         localStorage.setItem("lastKnownVersion", currentVersion);
+        lastKnownVersion = currentVersion;
     }
     
     // ==================== 工具函数 ====================
@@ -2028,10 +2032,18 @@
                     }
                 }
             }
+            // 重新获取版本号
+            await updateAppVersion();
+            const newVersion = document.getElementById("appVersion").innerText;
+            if (lastKnownVersion && lastKnownVersion !== newVersion && newVersion !== "获取中..." && newVersion !== "v1.0.0") {
+                showVersionToast(newVersion);
+                localStorage.setItem("lastKnownVersion", newVersion);
+                lastKnownVersion = newVersion;
+            }
             showToast("✅ 更新成功，即将刷新页面");
             setTimeout(() => {
                 window.location.reload(true);
-            }, 500);
+            }, 800);
         } catch(e) {
             showToast("❌ 更新失败，请手动刷新");
         }
@@ -3000,13 +3012,13 @@
         if (showYearStats) {
             let stats = getYearStats();
             document.getElementById("incomeCardLabel").innerHTML = "年度汇总";
-            document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalIncome, true);
+            document.getElementById("settingsMonthIncome").innerHTML = formatMoney(stats.totalIncome, false);
             document.getElementById("incomeCardDetails").style.display = "none";
             let yearContainer = document.getElementById("yearStatsContainer");
             yearContainer.style.display = "block";
             yearContainer.innerHTML = `
                 <div class="year-stats-grid">
-                    <div class="year-stat-item"><span class="year-stat-value">${formatMoney(stats.totalIncome, true)}</span><span class="year-stat-label">总收入</span></div>
+                    <div class="year-stat-item"><span class="year-stat-value">${formatMoney(stats.totalIncome, false)}</span><span class="year-stat-label">总收入</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.totalOvertimeHours.toFixed(1)}</span><span class="year-stat-label">总加班</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.attendanceDays}</span><span class="year-stat-label">上班天数</span></div>
                     <div class="year-stat-item"><span class="year-stat-value">${stats.dayDays}</span><span class="year-stat-label">白班天数</span></div>
@@ -4579,7 +4591,7 @@
         
         updateAppVersion();
         
-        // 检查版本更新并显示提示
+        // 检查版本更新并显示提示（只有版本不同才提示）
         checkVersionUpdate();
         
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
