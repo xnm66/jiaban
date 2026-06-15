@@ -2079,11 +2079,24 @@
     
     function z_getAutoDays() { return z_getAutoDaysForMonth(currentYear, currentMonth); }
     
-    function z_getAutoHoursForDed(typeName) {
-        let hours = 0;
+    function getAttendanceDaysForMonth(year, month) {
+        let days = 0;
+        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
         for (let r of records) {
-            let [y,m] = r.date.split('-');
-            if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "休息") {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+                days++;
+            }
+        }
+        return days;
+    }
+    
+    function z_getAutoHoursForDed(typeName, year, month) {
+        let hours = 0;
+        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+        for (let r of records) {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift === "休息") {
                 if (typeName === '事假扣款' && r.type === "personal") hours += r.hours || 0;
                 if (typeName === '病假扣款' && r.type === "sick") hours += r.hours || 0;
             }
@@ -2099,11 +2112,11 @@
         return true;
     }
     
-    function hasWorkdayPersonalOrSickLeave() {
-        let daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    function hasWorkdayPersonalOrSickLeaveForMonth(year, month) {
+        let daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
-            if (isWorkdayForAttendance(currentYear, currentMonth, d)) {
-                let dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            if (isWorkdayForAttendance(year, month, d)) {
+                let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 let rec = getDayRecords(dateStr)[0];
                 if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) return true;
             }
@@ -2167,73 +2180,48 @@
         return getMonthWorkdayCount(year, month) * 8;
     }
     
-    // 全勤奖计算（只统计 type 为 workday 且上班的记录）
-    function computeFullAttendanceAmount(item) {
+    // 全勤奖计算（只统计 type 为 workday 且上班的记录）- 支持指定月份
+    function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
         
-        let totalWorkdays = getMonthWorkdayCount(currentYear, currentMonth);
+        let totalWorkdays = getMonthWorkdayCount(year, month);
         if (totalWorkdays === 0) return 0;
         
         let dailyRate = fullAmount / totalWorkdays;
         let attendedWorkdays = 0;
         
+        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
         for (let r of records) {
-            let [y, m] = r.date.split('-');
-            if (parseInt(y) === currentYear && parseInt(m) - 1 === currentMonth) {
-                if (r.type === "workday" && r.shift !== "休息") {
-                    attendedWorkdays++;
-                }
+            if (r.date >= monthStart && r.date <= monthEnd && r.type === "workday" && r.shift !== "休息") {
+                attendedWorkdays++;
             }
         }
         
-        if (hasWorkdayPersonalOrSickLeave()) return 0;
+        let hasLeave = false;
+        let daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let d = 1; d <= daysInMonth; d++) {
+            let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            let rec = getDayRecords(dateStr)[0];
+            if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
+                hasLeave = true;
+                break;
+            }
+        }
         
+        if (hasLeave) return 0;
         return Math.round(dailyRate * attendedWorkdays);
     }
     
     function recalcAllowancesForMonth(year, month, allowances, deductions) {
-        let attendanceDays = 0;
-        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
-        for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
-                attendanceDays++;
-            }
-        }
+        let attendanceDays = getAttendanceDaysForMonth(year, month);
         let nightDays = z_getAutoDaysForMonth(year, month);
         
         for (let i = 0; i < allowances.length; i++) {
             let item = allowances[i];
             if (item.name === '全勤奖') {
-                let totalWorkdays = getMonthWorkdayCount(year, month);
-                if (totalWorkdays === 0) {
-                    item.amount = 0;
-                    continue;
-                }
-                let dailyRate = item.fullAmount / totalWorkdays;
-                let attendedWorkdays = 0;
-                for (let r of records) {
-                    let [y, m] = r.date.split('-');
-                    if (parseInt(y) === year && parseInt(m) - 1 === month && r.type === "workday" && r.shift !== "休息") {
-                        attendedWorkdays++;
-                    }
-                }
-                let hasLeave = false;
-                let daysInMonth = new Date(year, month + 1, 0).getDate();
-                for (let d = 1; d <= daysInMonth; d++) {
-                    let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    let rec = getDayRecords(dateStr)[0];
-                    if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
-                        hasLeave = true;
-                        break;
-                    }
-                }
-                if (hasLeave) {
-                    item.amount = 0;
-                } else {
-                    item.amount = Math.round(dailyRate * attendedWorkdays);
-                }
+                item.amount = computeFullAttendanceAmountForMonth(item, year, month);
                 continue;
             }
             if (item.calcType === 'day') {
@@ -2248,14 +2236,7 @@
         for (let i = 0; i < deductions.length; i++) {
             let item = deductions[i];
             if (item.name === '事假扣款' || item.name === '病假扣款') {
-                let hours = 0;
-                for (let r of records) {
-                    let [y, m] = r.date.split('-');
-                    if (parseInt(y) === year && parseInt(m) - 1 === month && r.shift === "休息") {
-                        if (item.name === '事假扣款' && r.type === "personal") hours += r.hours || 0;
-                        if (item.name === '病假扣款' && r.type === "sick") hours += r.hours || 0;
-                    }
-                }
+                let hours = item.autoHours ? z_getAutoHoursForDed(item.name, year, month) : (item.hours || 0);
                 item.hours = hours;
                 if (item.leaveSubType === 'fixed') {
                     let hr = item.hourlyRate || 0;
@@ -2564,7 +2545,7 @@
             document.getElementById('z_autoHourModeArea').style.display = 'flex';
             document.getElementById('z_manualHourModeArea').style.display = 'none';
             document.getElementById('z_hourToggle').classList.add('z_active');
-            let hours = z_getAutoHoursForDed(z_selectedType);
+            let hours = z_getAutoHoursForDed(z_selectedType, currentYear, currentMonth);
             document.getElementById('z_autoHourHint').innerHTML = `从记加班自动获取时长（${hours}小时）`;
         } else {
             document.getElementById('z_autoHourModeArea').style.display = 'none';
@@ -2821,7 +2802,7 @@
         if (!isSocialOrFund && z_leaveDeds.includes(finalName)) {
             newItem.leaveSubType = z_leaveSubType;
             newItem.autoHours = z_hourAuto;
-            let hours = z_hourAuto ? z_getAutoHoursForDed(finalName) : (parseFloat(document.getElementById('z_dedHours').value) || 0);
+            let hours = z_hourAuto ? z_getAutoHoursForDed(finalName, currentYear, currentMonth) : (parseFloat(document.getElementById('z_dedHours').value) || 0);
             newItem.hours = hours;
             if (z_leaveSubType === 'fixed') {
                 let hr = parseFloat(document.getElementById('z_dedAmount').value) || 0;
@@ -2860,12 +2841,12 @@
             let monthAllowances = monthlyAllowances[monthKey] || [];
             let monthDeductions = monthlyDeductions[monthKey] || [];
             
-            for (let a of monthAllowances) {
-                allowancesTotal += (a.amount || 0);
-            }
-            for (let d of monthDeductions) {
-                deductionsTotal += (d.amount || 0);
-            }
+            // 深拷贝一份用于重算
+            let tempAllowances = JSON.parse(JSON.stringify(monthAllowances));
+            let tempDeductions = JSON.parse(JSON.stringify(monthDeductions));
+            
+            // 重新计算该月份的补贴和扣款（基于该月份的数据）
+            recalcAllowancesForMonth(currentYearNum, month, tempAllowances, tempDeductions);
             
             let monthRecords = records.filter(r => {
                 let [y, m] = r.date.split('-');
@@ -2910,9 +2891,23 @@
                 monthlyBasePay = monthWorkdayCount > 0 ? Math.round((monthBaseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
             }
             
+            // 计算该月补贴总额
+            let monthAllowancesTotal = 0;
+            for (let a of tempAllowances) {
+                monthAllowancesTotal += (a.amount || 0);
+            }
+            // 计算该月扣款总额
+            let monthDeductionsTotal = 0;
+            for (let d of tempDeductions) {
+                monthDeductionsTotal += (d.amount || 0);
+            }
+            
             if (monthRecords.length > 0) {
                 totalIncome += monthlyBasePay + overtimePay + salaryIncome;
+                allowancesTotal += monthAllowancesTotal;
+                deductionsTotal += monthDeductionsTotal;
             }
+            
             totalOvertimeHours += normalH + weekendH + holidayH;
             nightDays += monthNightDays;
             dayDays += monthDayDays;
@@ -3248,7 +3243,7 @@
             attendanceDays: workdayAttendCount, workdayHours: workdayAttendCount * 8, 
             overtimeTotal: overtimeTotalForDisplay,
             vacationHours, personalHours, sickHours, paidHours, restHours, absentDays: personalDays + sickDays,
-            isFullAttendance: !hasWorkdayPersonalOrSickLeave()
+            isFullAttendance: !hasWorkdayPersonalOrSickLeaveForMonth(currentYear, currentMonth)
         };
     }
     
