@@ -28,7 +28,6 @@
         }
         .container { max-width: 500px; margin: 0 auto; position: relative; overflow-x: hidden; }
 
-        /* 版本更新提示条 */
         .version-toast {
             position: fixed;
             top: 16px;
@@ -2915,14 +2914,22 @@
     function z_closeSubPage() { document.getElementById('z_subPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     function z_closeDedPage() { document.getElementById('z_dedPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     
-    // ==================== 年度统计 ====================
+    // ==================== 年度统计（修复底薪继承问题） ====================
     function getYearStats() {
         let currentYearNum = currentYear;
         let totalIncome = 0, totalOvertimeHours = 0, nightDays = 0, dayDays = 0, restDays = 0, leaveDays = 0, attendanceDays = 0, allowancesTotal = 0, deductionsTotal = 0;
         
+        // 跟踪当前底薪（按时间顺序继承）
+        let currentBaseSalary = 0;
+        
         for (let month = 0; month < 12; month++) {
             let monthKey = `${currentYearNum}-${month + 1}`;
-            let monthBaseSalary = monthlyBaseSalary[monthKey] || 0;
+            
+            // 检查该月份是否有底薪变更记录，如果有则更新当前底薪
+            if (monthlyBaseSalary[monthKey] !== undefined && monthlyBaseSalary[monthKey] !== 0) {
+                currentBaseSalary = monthlyBaseSalary[monthKey];
+            }
+            
             let monthWorkdayCount = getMonthWorkdayCount(currentYearNum, month);
             
             let monthAllowances = monthlyAllowances[monthKey] || [];
@@ -2968,6 +2975,9 @@
                 }
             }
             
+            // 使用当前的底薪（已继承）
+            let monthBaseSalary = currentBaseSalary;
+            
             let hourlyWage = monthWorkdayCount > 0 ? (monthBaseSalary / monthWorkdayCount / 8) : (monthBaseSalary / 21.75 / 8);
             let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
             
@@ -2989,6 +2999,7 @@
                 monthDeductionsTotal += (d.amount || 0);
             }
             
+            // 只要该月份有记录就累加
             if (monthRecords.length > 0) {
                 totalIncome += monthlyBasePay + overtimePay + salaryIncome;
                 allowancesTotal += monthAllowancesTotal;
@@ -3040,6 +3051,13 @@
             document.getElementById("incomeCardDetails").style.display = "flex";
             document.getElementById("yearStatsContainer").style.display = "none";
         }
+    }
+    
+    // 同步设置页面的当前查看月份（从日历切换时调用）
+    function syncSettingsViewFromCalendar() {
+        settingsViewYear = currentYear;
+        settingsViewMonth = currentMonth;
+        updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
     }
     
     function bindIncomeCardLongPress() {
@@ -3099,12 +3117,12 @@
     
     function getBaseSalaryForMonthWithInherit(year, month) {
         let key = `${year}-${month + 1}`;
-        if (monthlyBaseSalary[key] !== undefined) return monthlyBaseSalary[key];
+        if (monthlyBaseSalary[key] !== undefined && monthlyBaseSalary[key] !== 0) return monthlyBaseSalary[key];
         if (globalSalaryConfigured) {
             let tempYear = year, tempMonth = month;
             while (tempMonth >= 0) {
                 let tempKey = `${tempYear}-${tempMonth + 1}`;
-                if (monthlyBaseSalary[tempKey] !== undefined) return monthlyBaseSalary[tempKey];
+                if (monthlyBaseSalary[tempKey] !== undefined && monthlyBaseSalary[tempKey] !== 0) return monthlyBaseSalary[tempKey];
                 tempMonth--;
                 if (tempMonth < 0) { tempMonth = 11; tempYear--; }
                 if (tempYear < 2000) break;
@@ -3114,8 +3132,8 @@
     }
     
     function updateSettingsCardForMonth(year, month) {
-        let monthKey = `${year}-${month + 1}`;
         let monthBaseSalary = getBaseSalaryForMonthWithInherit(year, month);
+        let monthKey = `${year}-${month + 1}`;
         let monthAllowances = monthlyAllowances[monthKey] || [];
         let monthDeductions = monthlyDeductions[monthKey] || [];
         
@@ -3166,7 +3184,7 @@
         
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
         
-        // 动态设置标题
+        // 动态设置标题 - 根据当前查看的月份和真实当前月份来判断
         let today = new Date();
         let currentYearReal = today.getFullYear();
         let currentMonthReal = today.getMonth();
@@ -3468,7 +3486,7 @@
         document.body.appendChild(modal);
         modal.style.display = "flex";
         document.getElementById("unifiedConfirmBtn").onclick = () => { modal.remove(); onConfirm(); };
-        document.getElementById("unifiedCancelBtn").onclick = () => { modal.remove(); };
+        document.getElementById("unifiedCancelBtn").onclick = () => modal.remove();
     }
     
     function clearAllData() {
@@ -4338,7 +4356,7 @@
     function initSwipe(){ 
         const container=document.querySelector(".container"); 
         container.addEventListener("touchstart",(e)=>{ if (!swipeEnabled) return; touchStartX=e.changedTouches[0].screenX; }); 
-        container.addEventListener("touchend",(e)=>{ if (!swipeEnabled) return; touchEndX=e.changedTouches[0].screenX; if(touchEndX-touchStartX>50){ currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } else if(touchStartX-touchEndX>50){ currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); } }); 
+        container.addEventListener("touchend",(e)=>{ if (!swipeEnabled) return; touchEndX=e.changedTouches[0].screenX; if(touchEndX-touchStartX>50){ currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); syncSettingsViewFromCalendar(); } else if(touchStartX-touchEndX>50){ currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); syncSettingsViewFromCalendar(); } }); 
     }
     
     function toggleSalaryMode() {
@@ -4621,8 +4639,8 @@
         statIncomeCard.addEventListener("touchend", () => { if (incomePressTimer) clearTimeout(incomePressTimer); });
         statIncomeCard.addEventListener("touchmove", () => { if (incomePressTimer) clearTimeout(incomePressTimer); });
         
-        document.getElementById("prevMonth").onclick = () => { currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
-        document.getElementById("nextMonth").onclick = () => { currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
+        document.getElementById("prevMonth").onclick = () => { currentMonth--; if(currentMonth<0){ currentMonth=11; currentYear--; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); syncSettingsViewFromCalendar(); };
+        document.getElementById("nextMonth").onclick = () => { currentMonth++; if(currentMonth>11){ currentMonth=0; currentYear++; } selectedDate = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); syncSettingsViewFromCalendar(); };
         document.getElementById("todayFab").onclick = () => { let t=new Date(); currentYear=t.getFullYear(); currentMonth=t.getMonth(); selectedDate=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; loadDataForCurrentMonth(); renderCalendar(); renderBottom(); };
         document.getElementById("currentMonthLabel").onclick = openYearMonthPicker;
         document.getElementById("closeYearMonthBtn").onclick = () => document.getElementById("yearMonthModal").style.display = "none";
