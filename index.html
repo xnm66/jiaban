@@ -1886,19 +1886,6 @@
     function showToast(msg){ let t=document.getElementById("toastMsg"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",1500); }
     
     // ==================== 判断日期类型 ====================
-    function isWorkdayOriginal(dateStr) {
-        let [year, month, day] = dateStr.split('-').map(Number);
-        let isHoliday = isStatutoryHoliday(year, month, day);
-        if (isHoliday) return false;
-        let date = new Date(year, month - 1, day);
-        let dayOfWeek = date.getDay();
-        return dayOfWeek !== 0 && dayOfWeek !== 6;
-    }
-    
-    function isWeekendOriginal(dateStr) {
-        return !isWorkdayOriginal(dateStr);
-    }
-    
     function getDefaultTypeByDate(dateStr, tiaoxiu) { 
         let [year, month, day] = dateStr.split('-').map(Number); 
         let isHoliday = isStatutoryHoliday(year, month, day); 
@@ -1911,11 +1898,17 @@
         return "workday"; 
     }
     
-    // 判断是否构成手动调班
-    function isSwapShift(dateStr, selectedType) {
-        if (selectedType === "salary") return false;
-        let defaultType = getDefaultTypeByDate(dateStr, getTiaoxiu(currentYear, dateStr));
-        return selectedType !== defaultType;
+    function getDefaultTypeForDate(dateStr) {
+        let [year, month, day] = dateStr.split('-').map(Number);
+        let tiaoxiu = getTiaoxiu(year, dateStr);
+        let isHoliday = isStatutoryHoliday(year, month, day);
+        if (isHoliday) return "holiday";
+        if (tiaoxiu.isFangjia) return "weekend";
+        if (tiaoxiu.isJiaban) return "workday";
+        let date = new Date(dateStr);
+        let dayOfWeek = date.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) return "weekend";
+        return "workday";
     }
     
     // ==================== Service Worker 版本更新 ====================
@@ -2075,7 +2068,16 @@
     const z_leaveDeds = ['事假扣款', '病假扣款'];
     const z_deductionOpts = ['社保扣款', '公积金扣款', '事假扣款', '病假扣款', '个人所得税', '房租扣款', '水电扣款', '食堂扣款', '其它项目'];
     
-    function z_getAutoDays() { let days = 0; for (let r of records) { let [y,m] = r.date.split('-'); if (parseInt(y) === currentYear && parseInt(m)-1 === currentMonth && r.shift === "晚班") days++; } return days; }
+    function z_getAutoDaysForMonth(year, month) { 
+        let days = 0; 
+        for (let r of records) { 
+            let [y,m] = r.date.split('-'); 
+            if (parseInt(y) === year && parseInt(m)-1 === month && r.shift === "晚班") days++; 
+        } 
+        return days; 
+    }
+    
+    function z_getAutoDays() { return z_getAutoDaysForMonth(currentYear, currentMonth); }
     
     function z_getAutoHoursForDed(typeName) {
         let hours = 0;
@@ -2179,28 +2181,60 @@
         for (let r of records) {
             let [y, m] = r.date.split('-');
             if (parseInt(y) === currentYear && parseInt(m) - 1 === currentMonth) {
-                // 只统计 type 为 workday 且不是休息的记录
                 if (r.type === "workday" && r.shift !== "休息") {
                     attendedWorkdays++;
                 }
             }
         }
         
-        // 检查是否有事假/病假（请假则无全勤）
         if (hasWorkdayPersonalOrSickLeave()) return 0;
         
         return Math.round(dailyRate * attendedWorkdays);
     }
     
-    function recalcDayBasedAllowances() {
-        let attendanceDays = getActualWorkdays();
-        let nightDays = z_getAutoDays();
+    function recalcAllowancesForMonth(year, month, allowances, deductions) {
+        let attendanceDays = 0;
+        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+        for (let r of records) {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+                attendanceDays++;
+            }
+        }
+        let nightDays = z_getAutoDaysForMonth(year, month);
         
-        for (let i = 0; i < settingsAllowances.length; i++) {
-            let item = settingsAllowances[i];
-            if (item.name === '全勤奖') { 
-                item.amount = computeFullAttendanceAmount(item); 
-                continue; 
+        for (let i = 0; i < allowances.length; i++) {
+            let item = allowances[i];
+            if (item.name === '全勤奖') {
+                let totalWorkdays = getMonthWorkdayCount(year, month);
+                if (totalWorkdays === 0) {
+                    item.amount = 0;
+                    continue;
+                }
+                let dailyRate = item.fullAmount / totalWorkdays;
+                let attendedWorkdays = 0;
+                for (let r of records) {
+                    let [y, m] = r.date.split('-');
+                    if (parseInt(y) === year && parseInt(m) - 1 === month && r.type === "workday" && r.shift !== "休息") {
+                        attendedWorkdays++;
+                    }
+                }
+                let hasLeave = false;
+                let daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let d = 1; d <= daysInMonth; d++) {
+                    let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    let rec = getDayRecords(dateStr)[0];
+                    if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
+                        hasLeave = true;
+                        break;
+                    }
+                }
+                if (hasLeave) {
+                    item.amount = 0;
+                } else {
+                    item.amount = Math.round(dailyRate * attendedWorkdays);
+                }
+                continue;
             }
             if (item.calcType === 'day') {
                 let dailyRate = item.dayPrice || 0, usedDays = 0;
@@ -2211,23 +2245,35 @@
             }
         }
         
-        for (let i = 0; i < settingsDeductions.length; i++) {
-            let item = settingsDeductions[i];
+        for (let i = 0; i < deductions.length; i++) {
+            let item = deductions[i];
             if (item.name === '事假扣款' || item.name === '病假扣款') {
-                let hours = item.autoHours ? z_getAutoHoursForDed(item.name) : (item.hours || 0);
+                let hours = 0;
+                for (let r of records) {
+                    let [y, m] = r.date.split('-');
+                    if (parseInt(y) === year && parseInt(m) - 1 === month && r.shift === "休息") {
+                        if (item.name === '事假扣款' && r.type === "personal") hours += r.hours || 0;
+                        if (item.name === '病假扣款' && r.type === "sick") hours += r.hours || 0;
+                    }
+                }
                 item.hours = hours;
-                
                 if (item.leaveSubType === 'fixed') {
                     let hr = item.hourlyRate || 0;
                     item.amount = hr * hours;
                 } else {
                     let p = item.percent || 0;
-                    let hr = z_getHourly() * p / 100;
+                    let monthlyBase = getBaseSalaryForMonth(year, month);
+                    let hourlyWage = monthlyBase / 21.75 / 8;
+                    let hr = hourlyWage * p / 100;
                     item.amount = hr * hours;
                     item.hourlyRate = hr;
                 }
             }
         }
+    }
+    
+    function recalcDayBasedAllowances() {
+        recalcAllowancesForMonth(currentYear, currentMonth, settingsAllowances, settingsDeductions);
     }
     
     function z_exists(name, type, exclude = -1) {
@@ -2811,9 +2857,8 @@
             let monthBaseSalary = monthlyBaseSalary[monthKey] || 0;
             let monthWorkdayCount = getMonthWorkdayCount(currentYearNum, month);
             
-            let isCurrentMonth = (month === currentMonth && currentYearNum === currentYear);
-            let monthAllowances = isCurrentMonth ? settingsAllowances : (monthlyAllowances[monthKey] || []);
-            let monthDeductions = isCurrentMonth ? settingsDeductions : (monthlyDeductions[monthKey] || []);
+            let monthAllowances = monthlyAllowances[monthKey] || [];
+            let monthDeductions = monthlyDeductions[monthKey] || [];
             
             for (let a of monthAllowances) {
                 allowancesTotal += (a.amount || 0);
@@ -2865,7 +2910,9 @@
                 monthlyBasePay = monthWorkdayCount > 0 ? Math.round((monthBaseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
             }
             
-            totalIncome += monthlyBasePay + overtimePay + salaryIncome;
+            if (monthRecords.length > 0) {
+                totalIncome += monthlyBasePay + overtimePay + salaryIncome;
+            }
             totalOvertimeHours += normalH + weekendH + holidayH;
             nightDays += monthNightDays;
             dayDays += monthDayDays;
@@ -2974,6 +3021,13 @@
         let monthAllowances = monthlyAllowances[monthKey] || [];
         let monthDeductions = monthlyDeductions[monthKey] || [];
         
+        // 复制一份用于计算
+        let tempAllowances = JSON.parse(JSON.stringify(monthAllowances));
+        let tempDeductions = JSON.parse(JSON.stringify(monthDeductions));
+        
+        // 重新计算该月份的补贴和扣款
+        recalcAllowancesForMonth(year, month, tempAllowances, tempDeductions);
+        
         let monthRecords = records.filter(r => {
             let [y, m] = r.date.split('-');
             return parseInt(y) === year && parseInt(m) - 1 === month;
@@ -2997,11 +3051,11 @@
         let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
         
         let allowancesTotal = 0;
-        for (let a of monthAllowances) {
+        for (let a of tempAllowances) {
             allowancesTotal += (a.amount || 0);
         }
         let deductionsTotal = 0;
-        for (let d of monthDeductions) {
+        for (let d of tempDeductions) {
             deductionsTotal += (d.amount || 0);
         }
         
@@ -3260,19 +3314,6 @@
             isFangjia: tiaoxiuData[year].fangjia?.includes(dateStr) || false,
             isJiaban: tiaoxiuData[year].jiaban?.includes(dateStr) || false
         };
-    }
-    
-    function getDefaultTypeForDate(dateStr) {
-        let [year, month, day] = dateStr.split('-').map(Number);
-        let tiaoxiu = getTiaoxiu(year, dateStr);
-        let isHoliday = isStatutoryHoliday(year, month, day);
-        if (isHoliday) return "holiday";
-        if (tiaoxiu.isFangjia) return "weekend";
-        if (tiaoxiu.isJiaban) return "workday";
-        let date = new Date(dateStr);
-        let dayOfWeek = date.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) return "weekend";
-        return "workday";
     }
     
     function analyzeBatchDatesType() {
@@ -4032,7 +4073,6 @@
     
     function saveLockedShift() { if (lockedShift) localStorage.setItem("lockedShift", lockedShift); else localStorage.removeItem("lockedShift"); }
     
-    // 单个日期编辑打开抽屉
     function openDrawer() { 
         if (!selectedDate) return; 
         let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
@@ -4138,7 +4178,6 @@
         renderSettingsAllowancesDeductions(); updateIncomeCardDisplay();
     }
     
-    // 保存记录（自动判断是否为手动调班）
     function saveFromDrawer() { 
         if (isMultiSelectMode && selectedDatesSet.size > 0) {
             let remark = document.getElementById("remarkInput").value;
@@ -4157,7 +4196,6 @@
         let existingRec = idx >= 0 ? records[idx] : null;
         let isEdit = existingRec !== null;
         
-        // 判断是否为手动调班
         let finalType = currentType;
         let isSwapped = false;
         if (currentShift !== "休息" && currentType !== "salary") {
