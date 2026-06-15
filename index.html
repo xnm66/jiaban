@@ -28,6 +28,49 @@
         }
         .container { max-width: 500px; margin: 0 auto; position: relative; overflow-x: hidden; }
 
+        /* 版本更新提示条 */
+        .version-toast {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #66b3ff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(102,179,255,0.4);
+            max-width: 90%;
+            white-space: nowrap;
+            animation: slideDown 0.3s ease;
+        }
+        .version-toast .close-btn {
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 2px 10px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+        .version-toast .close-btn:active {
+            background: rgba(255,255,255,0.3);
+            transform: scale(0.95);
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
         .stats-bar {
             background: linear-gradient(135deg, #66b3ff 0%, #3388ee 100%);
             border-radius: 16px;
@@ -1872,6 +1915,38 @@
     let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
     let batchTypeMode = "auto";
     
+    // ==================== 版本更新提示 ====================
+    function showVersionToast(version) {
+        // 移除已有的提示
+        let existing = document.querySelector('.version-toast');
+        if (existing) existing.remove();
+        
+        let toast = document.createElement('div');
+        toast.className = 'version-toast';
+        toast.innerHTML = `
+            <span>🎉 已更新至 ${version}</span>
+            <span class="close-btn">知道了</span>
+        `;
+        document.body.appendChild(toast);
+        
+        let closeBtn = toast.querySelector('.close-btn');
+        closeBtn.onclick = () => toast.remove();
+        
+        setTimeout(() => {
+            if (toast.parentNode) toast.remove();
+        }, 3000);
+    }
+    
+    function checkVersionUpdate() {
+        const currentVersion = document.getElementById("appVersion").innerText;
+        const savedVersion = localStorage.getItem("lastKnownVersion");
+        
+        if (savedVersion && savedVersion !== currentVersion && currentVersion !== "获取中..." && currentVersion !== "v1.0.0") {
+            showVersionToast(currentVersion);
+        }
+        localStorage.setItem("lastKnownVersion", currentVersion);
+    }
+    
     // ==================== 工具函数 ====================
     function formatMoney(value, isSubsidy = false) {
         if (value === undefined || value === null) return isSubsidy ? '0' : '0.00';
@@ -3010,9 +3085,25 @@
         });
     }
     
+    function getBaseSalaryForMonthWithInherit(year, month) {
+        let key = `${year}-${month + 1}`;
+        if (monthlyBaseSalary[key] !== undefined) return monthlyBaseSalary[key];
+        if (globalSalaryConfigured) {
+            let tempYear = year, tempMonth = month;
+            while (tempMonth >= 0) {
+                let tempKey = `${tempYear}-${tempMonth + 1}`;
+                if (monthlyBaseSalary[tempKey] !== undefined) return monthlyBaseSalary[tempKey];
+                tempMonth--;
+                if (tempMonth < 0) { tempMonth = 11; tempYear--; }
+                if (tempYear < 2000) break;
+            }
+        }
+        return 0;
+    }
+    
     function updateSettingsCardForMonth(year, month) {
         let monthKey = `${year}-${month + 1}`;
-        let monthBaseSalary = monthlyBaseSalary[monthKey] || 0;
+        let monthBaseSalary = getBaseSalaryForMonthWithInherit(year, month);
         let monthAllowances = monthlyAllowances[monthKey] || [];
         let monthDeductions = monthlyDeductions[monthKey] || [];
         
@@ -3063,7 +3154,16 @@
         
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
         
-        document.getElementById("incomeCardLabel").innerHTML = `${year}年${month+1}月预估收入`;
+        // 动态设置标题
+        let today = new Date();
+        let currentYearReal = today.getFullYear();
+        let currentMonthReal = today.getMonth();
+        if (year === currentYearReal && month === currentMonthReal) {
+            document.getElementById("incomeCardLabel").innerHTML = "本月预估收入";
+        } else {
+            document.getElementById("incomeCardLabel").innerHTML = `${year}年${month+1}月预估收入`;
+        }
+        
         document.getElementById("settingsMonthIncome").innerHTML = formatMoney(totalSalary, false);
         document.getElementById("settingsBaseSalary").innerHTML = formatMoney(monthBaseSalary, false);
         document.getElementById("settingsOvertime").innerHTML = formatMoney(overtimePay, false);
@@ -3076,7 +3176,8 @@
     function resetSettingsCardToCurrent() {
         settingsViewYear = null;
         settingsViewMonth = null;
-        updateIncomeCardDisplay();
+        let today = new Date();
+        updateSettingsCardForMonth(today.getFullYear(), today.getMonth());
     }
     
     function getCurrentMonthStatsForSettings() {
@@ -4477,6 +4578,9 @@
         renderBottom();
         
         updateAppVersion();
+        
+        // 检查版本更新并显示提示
+        checkVersionUpdate();
         
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
         document.getElementById("remarkModalConfirm").onclick = closeRemarkModal;
