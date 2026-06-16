@@ -28,35 +28,6 @@
         }
         .container { max-width: 500px; margin: 0 auto; position: relative; overflow-x: hidden; }
 
-        .version-toast {
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #66b3ff;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            z-index: 2000;
-            box-shadow: 0 4px 12px rgba(102,179,255,0.4);
-            max-width: 90%;
-            white-space: nowrap;
-            animation: slideDown 0.3s ease;
-            pointer-events: none;
-        }
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-            }
-        }
-
         .stats-bar {
             background: linear-gradient(135deg, #66b3ff 0%, #3388ee 100%);
             border-radius: 16px;
@@ -650,6 +621,42 @@
             color: #66b3ff;
             font-weight: 600;
         }
+        
+        /* 版本更新弹窗 */
+        .version-update-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .version-update-overlay.show {
+            display: flex;
+        }
+        .version-update-box {
+            background: #fff;
+            border-radius: 16px;
+            padding: 30px 24px 24px;
+            max-width: 320px;
+            width: 85%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            animation: popIn 0.3s ease;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .version-update-box .icon { font-size: 2.4rem; margin-bottom: 8px; }
+        .version-update-box .title { font-size: 1rem; font-weight: 700; color: #1f2d3d; }
+        .version-update-box .desc { font-size: 0.75rem; color: #909399; margin: 6px 0 16px; }
+        .version-update-box .countdown { font-size: 2.8rem; font-weight: 700; color: #66b3ff; }
+        .version-update-box .hint { font-size: 0.6rem; color: #c0c4cc; margin-top: 8px; }
         
         .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
         .date-picker-modal { width: 260px; background: #fff; border-radius: 10px; overflow: hidden; }
@@ -1850,6 +1857,15 @@
 </div>
 
 <div id="swapTimeModal" class="unified-modal"></div>
+<div id="versionUpdateOverlay" class="version-update-overlay">
+    <div class="version-update-box">
+        <div class="icon">🚀</div>
+        <div class="title">发现新版本 <span id="newVersionText">1.8.1</span></div>
+        <div class="desc">更新缓存已就绪，即将自动刷新</div>
+        <div class="countdown" id="countdownNum">5</div>
+        <div class="hint">倒计时结束后自动更新</div>
+    </div>
+</div>
 
 <div id="toastMsg" class="toast"></div>
 
@@ -1901,41 +1917,86 @@
     let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
     let batchTypeMode = "auto";
     
-    // 版本记录
-    let lastKnownVersion = localStorage.getItem("lastKnownVersion") || "";
-    let isFirstLoad = true;
+    // 硬编码版本号（每次发布时修改）
+    const APP_VERSION = '1.8.0';
     
-    // ==================== 版本更新提示（刷新后显示，自动关闭5秒） ====================
-    function showVersionToast(version) {
-        let existing = document.querySelector('.version-toast');
-        if (existing) existing.remove();
-        
-        let toast = document.createElement('div');
-        toast.className = 'version-toast';
-        toast.innerHTML = `<span>🎉 已更新至 ${version}</span>`;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast.parentNode) toast.remove();
-        }, 5000);
+    // ==================== 版本更新检测（点击版本号触发） ====================
+    function getCurrentAppVersion() {
+        // 从缓存名称获取
+        let version = APP_VERSION;
+        try {
+            const el = document.getElementById("appVersion");
+            if (el && el.innerText && el.innerText !== "获取中...") {
+                version = el.innerText;
+            }
+        } catch(e) {}
+        return version;
     }
     
-    function checkVersionUpdate() {
-        // 只在页面加载完成后检查
-        if (!isFirstLoad) return;
-        isFirstLoad = false;
+    function checkForUpdate() {
+        const currentVersion = getCurrentAppVersion();
         
-        const currentVersion = document.getElementById("appVersion").innerText;
-        const savedVersion = localStorage.getItem("lastKnownVersion");
-        
-        if (savedVersion && savedVersion !== currentVersion && currentVersion !== "获取中..." && currentVersion !== "v1.0.0") {
-            // 延迟显示，确保页面已经渲染完成
-            setTimeout(() => {
-                showVersionToast(currentVersion);
-            }, 500);
+        if ('caches' in window) {
+            caches.keys().then(cacheNames => {
+                const versions = cacheNames
+                    .filter(name => name.startsWith('jiaban-'))
+                    .map(name => name.replace('jiaban-', ''));
+                
+                if (versions.length === 0) {
+                    showToast("未检测到缓存版本");
+                    return;
+                }
+                
+                // 获取最新版本
+                const sorted = versions.sort();
+                const latest = sorted[sorted.length - 1];
+                
+                if (latest && latest !== currentVersion) {
+                    // 发现新版本，显示倒计时弹窗
+                    showUpdateDialog(latest);
+                } else {
+                    showToast("已是最新版本 ✅");
+                }
+            }).catch(() => {
+                showToast("检查更新失败");
+            });
+        } else {
+            showToast("当前浏览器不支持缓存更新");
         }
-        localStorage.setItem("lastKnownVersion", currentVersion);
-        lastKnownVersion = currentVersion;
+    }
+    
+    function showUpdateDialog(newVersion) {
+        const overlay = document.getElementById("versionUpdateOverlay");
+        document.getElementById("newVersionText").innerText = newVersion;
+        overlay.classList.add("show");
+        
+        let countdown = 5;
+        const countdownEl = document.getElementById("countdownNum");
+        countdownEl.innerText = countdown;
+        
+        const timer = setInterval(() => {
+            countdown--;
+            countdownEl.innerText = countdown;
+            if (countdown <= 0) {
+                clearInterval(timer);
+                doUpdate();
+            }
+        }, 1000);
+    }
+    
+    function doUpdate() {
+        // 让 Service Worker 跳过等待，激活新版本
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                for (const reg of registrations) {
+                    if (reg.waiting) {
+                        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                }
+            });
+        }
+        // 刷新页面
+        window.location.reload(true);
     }
     
     // ==================== 工具函数 ====================
@@ -1977,7 +2038,7 @@
         return "workday";
     }
     
-    // ==================== Service Worker 版本更新 ====================
+    // ==================== 获取版本号（从缓存名称） ====================
     async function updateAppVersion() {
         try {
             if ('caches' in window) {
@@ -1994,47 +2055,10 @@
             if (savedVersion && savedVersion !== '获取中...') {
                 document.getElementById('appVersion').innerText = savedVersion;
             } else {
-                document.getElementById('appVersion').innerText = 'v1.0.0';
+                document.getElementById('appVersion').innerText = APP_VERSION;
             }
         } catch(e) {
-            document.getElementById('appVersion').innerText = 'v1.0.0';
-        }
-    }
-    
-    async function forceUpdateCache() {
-        showToast("🔄 正在检查更新...");
-        try {
-            if ('caches' in window) {
-                const cacheNames = await caches.keys();
-                for (const cacheName of cacheNames) {
-                    await caches.delete(cacheName);
-                }
-            }
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const registration of registrations) {
-                    await registration.update();
-                    if (registration.waiting) {
-                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    }
-                }
-            }
-            await updateAppVersion();
-            const newVersion = document.getElementById("appVersion").innerText;
-            if (lastKnownVersion && lastKnownVersion !== newVersion && newVersion !== "获取中..." && newVersion !== "v1.0.0") {
-                // 延迟显示，刷新后显示
-                setTimeout(() => {
-                    showVersionToast(newVersion);
-                }, 500);
-                localStorage.setItem("lastKnownVersion", newVersion);
-                lastKnownVersion = newVersion;
-            }
-            showToast("✅ 更新成功，即将刷新页面");
-            setTimeout(() => {
-                window.location.reload(true);
-            }, 800);
-        } catch(e) {
-            showToast("❌ 更新失败，请手动刷新");
+            document.getElementById('appVersion').innerText = APP_VERSION;
         }
     }
     
@@ -2128,7 +2152,7 @@
         showToast("复用成功 ✅");
     }
     
-    // ==================== 补贴/扣款相关（保持不变） ====================
+    // ==================== 补贴/扣款相关 ====================
     function z_saveSubDed() {
         recalcDayBasedAllowances();
         saveCurrentMonthData();
@@ -2275,7 +2299,7 @@
         return workdayCount;
     }
     
-    // 全勤奖：有事假/病假直接归零，否则按比例且不超过总额
+    // 全勤奖：有事假/病假直接归零，薪假计入出勤，日结不影响，按比例且封顶
     function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
@@ -2286,13 +2310,22 @@
         let requiredWorkdays = getRequiredWorkdaysForMonth(year, month);
         if (requiredWorkdays === 0) return 0;
         
-        // 实际出勤的工作日天数（在应出勤工作日里确实来上班了）
+        // 实际出勤的工作日天数（薪假计入，日结不计入）
         let actualWorkdays = 0;
         let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
         for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.type === "workday" && r.shift !== "休息") {
-                actualWorkdays++;
+            if (r.date >= monthStart && r.date <= monthEnd) {
+                // 调班后的类型是 workday
+                if (r.type === "workday") {
+                    // 薪假计入，日结不计入，正常上班计入
+                    if (r.shift === "休息" && r.type === "paid") {
+                        actualWorkdays++; // 薪假计入
+                    } else if (r.shift !== "休息") {
+                        actualWorkdays++; // 正常上班计入
+                    }
+                    // 日结（salary）不影响全勤，不计入
+                }
             }
         }
         
@@ -2316,7 +2349,13 @@
                 if (item.autoDays === true) usedDays = (item.name === '夜班补贴') ? nightDays : attendanceDays;
                 else usedDays = Math.min(attendanceDays, item.dayCount || 0);
                 item.currentDays = usedDays;
-                item.amount = Math.round(dailyRate * usedDays);
+                let calculated = Math.round(dailyRate * usedDays);
+                // 封顶：不能超过设定总额（按月计算时）
+                let maxAmount = item.amount || 0;
+                if (item.maxAmount !== undefined) maxAmount = item.maxAmount;
+                // 如果按天计算，总额 = dayPrice * 应出勤天数
+                let totalCap = item.dayPrice * getRequiredWorkdaysForMonth(year, month);
+                item.amount = Math.min(calculated, totalCap);
             }
         }
         
@@ -2915,7 +2954,7 @@
     function z_closeSubPage() { document.getElementById('z_subPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     function z_closeDedPage() { document.getElementById('z_dedPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     
-    // ==================== 年度统计（修复底薪继承 + 上班天数统一） ====================
+    // ==================== 年度统计 ====================
     function getYearStats() {
         let currentYearNum = currentYear;
         let totalIncome = 0, totalOvertimeHours = 0, nightDays = 0, dayDays = 0, restDays = 0, leaveDays = 0, attendanceDays = 0, allowancesTotal = 0, deductionsTotal = 0;
@@ -3091,7 +3130,6 @@
                     settingsViewYear--;
                 }
                 updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
-                showToast(`查看 ${settingsViewYear}年${settingsViewMonth+1}月收入`);
             } else {
                 if (settingsViewYear === null) {
                     settingsViewYear = currentYear;
@@ -3103,7 +3141,6 @@
                     settingsViewYear++;
                 }
                 updateSettingsCardForMonth(settingsViewYear, settingsViewMonth);
-                showToast(`查看 ${settingsViewYear}年${settingsViewMonth+1}月收入`);
             }
         });
     }
@@ -4603,9 +4640,6 @@
         
         updateAppVersion();
         
-        // 版本更新提示在刷新后显示
-        checkVersionUpdate();
-        
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
         document.getElementById("remarkModalConfirm").onclick = closeRemarkModal;
         document.getElementById("remarkModal").onclick = (e) => { if (e.target === document.getElementById("remarkModal")) closeRemarkModal(); };
@@ -4673,7 +4707,8 @@
         document.getElementById("helpBtn").onclick = showHelpSubPage;
         document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
         
-        document.getElementById("versionCard").onclick = forceUpdateCache;
+        // 点击版本号触发更新检测
+        document.getElementById("versionCard").onclick = checkForUpdate;
         
         document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
         document.getElementById("deductionHeader").onclick = toggleDeductionExpand;
