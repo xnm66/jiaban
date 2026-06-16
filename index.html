@@ -40,24 +40,11 @@
             font-size: 0.75rem;
             font-weight: 500;
             z-index: 2000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
             box-shadow: 0 4px 12px rgba(102,179,255,0.4);
             max-width: 90%;
             white-space: nowrap;
             animation: slideDown 0.3s ease;
-        }
-        .version-toast .close-btn {
-            background: rgba(255,255,255,0.2);
-            border-radius: 20px;
-            padding: 2px 10px;
-            cursor: pointer;
-            font-size: 0.7rem;
-        }
-        .version-toast .close-btn:active {
-            background: rgba(255,255,255,0.3);
-            transform: scale(0.95);
+            pointer-events: none;
         }
         @keyframes slideDown {
             from {
@@ -1917,32 +1904,25 @@
     // 版本记录
     let lastKnownVersion = localStorage.getItem("lastKnownVersion") || "";
     
-    // ==================== 版本更新提示 ====================
+    // ==================== 版本更新提示（自动关闭5秒） ====================
     function showVersionToast(version) {
         let existing = document.querySelector('.version-toast');
         if (existing) existing.remove();
         
         let toast = document.createElement('div');
         toast.className = 'version-toast';
-        toast.innerHTML = `
-            <span>🎉 已更新至 ${version}</span>
-            <span class="close-btn">知道了</span>
-        `;
+        toast.innerHTML = `<span>🎉 已更新至 ${version}</span>`;
         document.body.appendChild(toast);
-        
-        let closeBtn = toast.querySelector('.close-btn');
-        closeBtn.onclick = () => toast.remove();
         
         setTimeout(() => {
             if (toast.parentNode) toast.remove();
-        }, 3000);
+        }, 5000);
     }
     
     function checkVersionUpdate() {
         const currentVersion = document.getElementById("appVersion").innerText;
         const savedVersion = localStorage.getItem("lastKnownVersion");
         
-        // 版本不同且不是初始状态才提示
         if (savedVersion && savedVersion !== currentVersion && currentVersion !== "获取中..." && currentVersion !== "v1.0.0") {
             showVersionToast(currentVersion);
         }
@@ -2031,7 +2011,6 @@
                     }
                 }
             }
-            // 重新获取版本号
             await updateAppVersion();
             const newVersion = document.getElementById("appVersion").innerText;
             if (lastKnownVersion && lastKnownVersion !== newVersion && newVersion !== "获取中..." && newVersion !== "v1.0.0") {
@@ -2138,7 +2117,7 @@
         showToast("复用成功 ✅");
     }
     
-    // ==================== 补贴/扣款相关 ====================
+    // ==================== 补贴/扣款相关（保持不变） ====================
     function z_saveSubDed() {
         recalcDayBasedAllowances();
         saveCurrentMonthData();
@@ -2165,12 +2144,26 @@
     
     function z_getAutoDays() { return z_getAutoDaysForMonth(currentYear, currentMonth); }
     
+    // 上班天数（统一：只要shift不是休息都算，包含日结）
     function getAttendanceDaysForMonth(year, month) {
         let days = 0;
         let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
         for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息") {
+                days++;
+            }
+        }
+        return days;
+    }
+    
+    // 实际上班天数（用于显示，同样规则）
+    function getActualWorkdays() {
+        let days = 0;
+        let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
+        let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
+        for (let r of records) {
+            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息") {
                 days++;
             }
         }
@@ -2234,70 +2227,73 @@
         return days;
     }
     
-    // 获取实际上班天数（用于显示）- 所有上班的日子（不含休息）
-    function getActualWorkdays() {
-        let days = 0;
-        let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
-        let monthEnd = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${new Date(currentYear, currentMonth+1, 0).getDate()}`;
-        for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.shift !== "休息" && r.type !== "salary") {
-                days++;
-            }
-        }
-        return days;
-    }
-    
-    function getMonthWorkdayCount(year, month) {
+    // ==================== 应出勤工作日（全勤奖分母）正确判断班字/休字/调字 ====================
+    function getRequiredWorkdaysForMonth(year, month) {
         let daysInMonth = new Date(year, month + 1, 0).getDate();
         let workdayCount = 0;
+        
         for (let d = 1; d <= daysInMonth; d++) {
             let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             let tiaoxiu = getTiaoxiu(year, dateStr);
-            let isHoliday = isStatutoryHoliday(year, month + 1, d);
+            
+            // 1. 国家调休「休字」→ 不算应出勤
+            if (tiaoxiu.isFangjia) continue;
+            
+            // 2. 法定节假日 → 不算应出勤
+            if (isStatutoryHoliday(year, month + 1, d)) continue;
+            
+            // 3. 国家调休「班字」→ 算应出勤
+            if (tiaoxiu.isJiaban) {
+                workdayCount++;
+                continue;
+            }
+            
+            // 4. 工厂调班「调字」→ 按调班后的类型判断
+            let rec = getDayRecords(dateStr)[0];
+            if (rec && rec.swapped === true) {
+                if (rec.type === "workday") workdayCount++;
+                continue;
+            }
+            
+            // 5. 正常情况：工作日算，周末不算
             let date = new Date(year, month, d);
-            let isWeekend = (date.getDay() === 0 || date.getDay() === 6 || tiaoxiu.isFangjia);
-            let isWorkday = !isHoliday && !isWeekend && !tiaoxiu.isJiaban;
-            if (isWorkday) workdayCount++;
+            let dayOfWeek = date.getDay();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) workdayCount++;
         }
         return workdayCount;
     }
     
-    function getMonthStandardHours(year, month) {
-        return getMonthWorkdayCount(year, month) * 8;
-    }
-    
-    // 全勤奖计算（只统计 type 为 workday 且上班的记录）- 支持指定月份
+    // 全勤奖：按工作日累计，有事假/病假直接归零，否则按比例且不超过总额
     function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
         
-        let totalWorkdays = getMonthWorkdayCount(year, month);
-        if (totalWorkdays === 0) return 0;
-        
-        let dailyRate = fullAmount / totalWorkdays;
-        let attendedWorkdays = 0;
-        
-        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
-        for (let r of records) {
-            if (r.date >= monthStart && r.date <= monthEnd && r.type === "workday" && r.shift !== "休息") {
-                attendedWorkdays++;
-            }
-        }
-        
-        let hasLeave = false;
+        // 检查是否有事假/病假
         let daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
             let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             let rec = getDayRecords(dateStr)[0];
             if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
-                hasLeave = true;
-                break;
+                return 0;
             }
         }
         
-        if (hasLeave) return 0;
-        return Math.round(dailyRate * attendedWorkdays);
+        let requiredWorkdays = getRequiredWorkdaysForMonth(year, month);
+        if (requiredWorkdays === 0) return 0;
+        
+        // 实际出勤的工作日天数（在应出勤工作日里确实来上班了）
+        let actualWorkdays = 0;
+        let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+        let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
+        for (let r of records) {
+            if (r.date >= monthStart && r.date <= monthEnd && r.type === "workday" && r.shift !== "休息") {
+                actualWorkdays++;
+            }
+        }
+        
+        let dailyRate = fullAmount / requiredWorkdays;
+        let result = Math.round(dailyRate * actualWorkdays);
+        return Math.min(result, fullAmount);
     }
     
     function recalcAllowancesForMonth(year, month, allowances, deductions) {
@@ -2914,32 +2910,28 @@
     function z_closeSubPage() { document.getElementById('z_subPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     function z_closeDedPage() { document.getElementById('z_dedPage').classList.remove('z_show'); z_editTarget = null; z_isEditing = false; }
     
-    // ==================== 年度统计（修复底薪继承问题） ====================
+    // ==================== 年度统计（修复底薪继承 + 上班天数统一） ====================
     function getYearStats() {
         let currentYearNum = currentYear;
         let totalIncome = 0, totalOvertimeHours = 0, nightDays = 0, dayDays = 0, restDays = 0, leaveDays = 0, attendanceDays = 0, allowancesTotal = 0, deductionsTotal = 0;
         
-        // 跟踪当前底薪（按时间顺序继承）
         let currentBaseSalary = 0;
         
         for (let month = 0; month < 12; month++) {
             let monthKey = `${currentYearNum}-${month + 1}`;
             
-            // 检查该月份是否有底薪变更记录，如果有则更新当前底薪
             if (monthlyBaseSalary[monthKey] !== undefined && monthlyBaseSalary[monthKey] !== 0) {
                 currentBaseSalary = monthlyBaseSalary[monthKey];
             }
             
-            let monthWorkdayCount = getMonthWorkdayCount(currentYearNum, month);
+            let monthWorkdayCount = getRequiredWorkdaysForMonth(currentYearNum, month);
             
             let monthAllowances = monthlyAllowances[monthKey] || [];
             let monthDeductions = monthlyDeductions[monthKey] || [];
             
-            // 深拷贝一份用于重算
             let tempAllowances = JSON.parse(JSON.stringify(monthAllowances));
             let tempDeductions = JSON.parse(JSON.stringify(monthDeductions));
             
-            // 重新计算该月份的补贴和扣款（基于该月份的数据）
             recalcAllowancesForMonth(currentYearNum, month, tempAllowances, tempDeductions);
             
             let monthRecords = records.filter(r => {
@@ -2950,6 +2942,7 @@
             let normalH = 0, weekendH = 0, holidayH = 0, salaryIncome = 0;
             let monthNightDays = 0, monthDayDays = 0, monthRestDays = 0, monthLeaveDays = 0;
             let workdayAttendCount = 0;
+            let workAttendCountUnified = 0;
             
             for (let r of monthRecords) {
                 if (r.type === "workday") {
@@ -2968,6 +2961,7 @@
                         monthLeaveDays++;
                     }
                 } else {
+                    workAttendCountUnified++;
                     if (r.type !== "salary") {
                         if (r.shift === "白班") monthDayDays++;
                         else if (r.shift === "晚班") monthNightDays++;
@@ -2975,9 +2969,7 @@
                 }
             }
             
-            // 使用当前的底薪（已继承）
             let monthBaseSalary = currentBaseSalary;
-            
             let hourlyWage = monthWorkdayCount > 0 ? (monthBaseSalary / monthWorkdayCount / 8) : (monthBaseSalary / 21.75 / 8);
             let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
             
@@ -2988,22 +2980,20 @@
                 monthlyBasePay = monthWorkdayCount > 0 ? Math.round((monthBaseSalary / monthWorkdayCount) * workdayAttendCount) : 0;
             }
             
-            // 计算该月补贴总额
             let monthAllowancesTotal = 0;
             for (let a of tempAllowances) {
                 monthAllowancesTotal += (a.amount || 0);
             }
-            // 计算该月扣款总额
             let monthDeductionsTotal = 0;
             for (let d of tempDeductions) {
                 monthDeductionsTotal += (d.amount || 0);
             }
             
-            // 只要该月份有记录就累加
             if (monthRecords.length > 0) {
                 totalIncome += monthlyBasePay + overtimePay + salaryIncome;
                 allowancesTotal += monthAllowancesTotal;
                 deductionsTotal += monthDeductionsTotal;
+                attendanceDays += workAttendCountUnified;
             }
             
             totalOvertimeHours += normalH + weekendH + holidayH;
@@ -3011,7 +3001,6 @@
             dayDays += monthDayDays;
             restDays += monthRestDays;
             leaveDays += monthLeaveDays;
-            attendanceDays += workdayAttendCount;
         }
         
         totalIncome = totalIncome + allowancesTotal - deductionsTotal;
@@ -3053,7 +3042,6 @@
         }
     }
     
-    // 同步设置页面的当前查看月份（从日历切换时调用）
     function syncSettingsViewFromCalendar() {
         settingsViewYear = currentYear;
         settingsViewMonth = currentMonth;
@@ -3137,11 +3125,9 @@
         let monthAllowances = monthlyAllowances[monthKey] || [];
         let monthDeductions = monthlyDeductions[monthKey] || [];
         
-        // 复制一份用于计算
         let tempAllowances = JSON.parse(JSON.stringify(monthAllowances));
         let tempDeductions = JSON.parse(JSON.stringify(monthDeductions));
         
-        // 重新计算该月份的补贴和扣款
         recalcAllowancesForMonth(year, month, tempAllowances, tempDeductions);
         
         let monthRecords = records.filter(r => {
@@ -3162,7 +3148,7 @@
             else if (r.type === "salary") salaryIncome += r.amount || 0;
         }
         
-        let monthWorkdayCount = getMonthWorkdayCount(year, month);
+        let monthWorkdayCount = getRequiredWorkdaysForMonth(year, month);
         let hourlyWage = monthWorkdayCount > 0 ? (monthBaseSalary / monthWorkdayCount / 8) : (monthBaseSalary / 21.75 / 8);
         let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
         
@@ -3184,7 +3170,6 @@
         
         let totalSalary = monthlyBasePay + overtimePay + salaryIncome + allowancesTotal - deductionsTotal;
         
-        // 动态设置标题 - 根据当前查看的月份和真实当前月份来判断
         let today = new Date();
         let currentYearReal = today.getFullYear();
         let currentMonthReal = today.getMonth();
@@ -3227,7 +3212,7 @@
             }
         }
         
-        let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+        let monthWorkdayCount = getRequiredWorkdaysForMonth(currentYear, currentMonth);
         let hourlyWage = monthWorkdayCount > 0 ? (baseSalary / monthWorkdayCount / 8) : (baseSalary / 21.75 / 8);
         let overtimePay = (normalH * hourlyWage * 1.5) + (weekendH * hourlyWage * 2) + (holidayH * hourlyWage * 3);
         let allowancesTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
@@ -3246,7 +3231,7 @@
     function saveBackup() { saveAllMonthlyData(); }
     
     function getHourlyWage() { 
-        let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+        let monthWorkdayCount = getRequiredWorkdaysForMonth(currentYear, currentMonth);
         if (monthWorkdayCount > 0) {
             return baseSalary / monthWorkdayCount / 8;
         }
@@ -3321,7 +3306,7 @@
         }
         
         let overtimeTotal = normalH + weekendH + holidayH;
-        let monthWorkdayCount = getMonthWorkdayCount(currentYear, currentMonth);
+        let monthWorkdayCount = getRequiredWorkdaysForMonth(currentYear, currentMonth);
         let standardHours = monthWorkdayCount * 8;
         
         let overtimeHoursForComprehensive = 0;
@@ -4489,7 +4474,7 @@
         } else if (method === 'hourly') {
             html = `<div class="edit-form-field"><span class="edit-form-label">平日时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*节假日为劳动节、国庆节、春节等法定节假日。</div>`;
         } else if (method === 'comprehensive') {
-            let standardHours = getMonthWorkdayCount(currentYear, currentMonth) * 8;
+            let standardHours = getRequiredWorkdaysForMonth(currentYear, currentMonth) * 8;
             html = `<div class="edit-form-field"><span class="edit-form-label">月基本工资</span><div class="edit-form-input-wrapper"><input type="number" id="editBaseSalaryInner" class="edit-form-input" placeholder="0" step="1" value="${baseSalary === 0 ? '' : baseSalary}"><span class="edit-form-unit">元/月</span></div></div><div class="edit-form-field"><span class="edit-form-label">小时工资</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">加班时薪</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWorkdayMultiInner" class="edit-form-input" step="0.1" value="1.5"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWorkdayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 1.5).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*当月标准工时为 ${standardHours} 小时，超过部分才算加班</div>`;
         }
         container.innerHTML = html;
@@ -4609,7 +4594,6 @@
         
         updateAppVersion();
         
-        // 检查版本更新并显示提示（只有版本不同才提示）
         checkVersionUpdate();
         
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
