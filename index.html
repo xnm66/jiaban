@@ -1903,8 +1903,9 @@
     
     // 版本记录
     let lastKnownVersion = localStorage.getItem("lastKnownVersion") || "";
+    let isFirstLoad = true;
     
-    // ==================== 版本更新提示（自动关闭5秒） ====================
+    // ==================== 版本更新提示（刷新后显示，自动关闭5秒） ====================
     function showVersionToast(version) {
         let existing = document.querySelector('.version-toast');
         if (existing) existing.remove();
@@ -1920,11 +1921,18 @@
     }
     
     function checkVersionUpdate() {
+        // 只在页面加载完成后检查
+        if (!isFirstLoad) return;
+        isFirstLoad = false;
+        
         const currentVersion = document.getElementById("appVersion").innerText;
         const savedVersion = localStorage.getItem("lastKnownVersion");
         
         if (savedVersion && savedVersion !== currentVersion && currentVersion !== "获取中..." && currentVersion !== "v1.0.0") {
-            showVersionToast(currentVersion);
+            // 延迟显示，确保页面已经渲染完成
+            setTimeout(() => {
+                showVersionToast(currentVersion);
+            }, 500);
         }
         localStorage.setItem("lastKnownVersion", currentVersion);
         lastKnownVersion = currentVersion;
@@ -2014,7 +2022,10 @@
             await updateAppVersion();
             const newVersion = document.getElementById("appVersion").innerText;
             if (lastKnownVersion && lastKnownVersion !== newVersion && newVersion !== "获取中..." && newVersion !== "v1.0.0") {
-                showVersionToast(newVersion);
+                // 延迟显示，刷新后显示
+                setTimeout(() => {
+                    showVersionToast(newVersion);
+                }, 500);
                 localStorage.setItem("lastKnownVersion", newVersion);
                 lastKnownVersion = newVersion;
             }
@@ -2191,13 +2202,14 @@
         return true;
     }
     
-    function hasWorkdayPersonalOrSickLeaveForMonth(year, month) {
+    // 判断是否有事假或病假（全勤奖扣发条件）
+    function hasPersonalOrSickLeaveForMonth(year, month) {
         let daysInMonth = new Date(year, month + 1, 0).getDate();
         for (let d = 1; d <= daysInMonth; d++) {
-            if (isWorkdayForAttendance(year, month, d)) {
-                let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                let rec = getDayRecords(dateStr)[0];
-                if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) return true;
+            let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            let rec = getDayRecords(dateStr)[0];
+            if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
+                return true;
             }
         }
         return false;
@@ -2248,7 +2260,7 @@
                 continue;
             }
             
-            // 4. 工厂调班「调字」→ 按调班后的类型判断
+            // 4. 工厂调班「调字」→ 按调班后的类型判断（只有 workday 算应出勤）
             let rec = getDayRecords(dateStr)[0];
             if (rec && rec.swapped === true) {
                 if (rec.type === "workday") workdayCount++;
@@ -2263,20 +2275,13 @@
         return workdayCount;
     }
     
-    // 全勤奖：按工作日累计，有事假/病假直接归零，否则按比例且不超过总额
+    // 全勤奖：有事假/病假直接归零，否则按比例且不超过总额
     function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
         
-        // 检查是否有事假/病假
-        let daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let d = 1; d <= daysInMonth; d++) {
-            let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            let rec = getDayRecords(dateStr)[0];
-            if (rec && rec.shift === "休息" && (rec.type === "personal" || rec.type === "sick")) {
-                return 0;
-            }
-        }
+        // 检查是否有事假或病假 → 全勤归零
+        if (hasPersonalOrSickLeaveForMonth(year, month)) return 0;
         
         let requiredWorkdays = getRequiredWorkdaysForMonth(year, month);
         if (requiredWorkdays === 0) return 0;
@@ -2954,7 +2959,7 @@
                 else if (r.type === "salary") salaryIncome += r.amount || 0;
                 
                 if (r.shift === "休息") {
-                    if (r.type === "vacation" || r.type === "rest") {
+                    if (r.type === "vacation" || r.type === "rest" || r.type === "paid") {
                         monthRestDays++;
                     }
                     if (r.type === "personal" || r.type === "sick") {
@@ -3359,7 +3364,7 @@
             attendanceDays: workdayAttendCount, workdayHours: workdayAttendCount * 8, 
             overtimeTotal: overtimeTotalForDisplay,
             vacationHours, personalHours, sickHours, paidHours, restHours, absentDays: personalDays + sickDays,
-            isFullAttendance: !hasWorkdayPersonalOrSickLeaveForMonth(currentYear, currentMonth)
+            isFullAttendance: !hasPersonalOrSickLeaveForMonth(currentYear, currentMonth)
         };
     }
     
@@ -3937,7 +3942,10 @@
                 let badgeHtml = ''; 
                 if (lunarInfo.isStatutory || tiaoxiu.isFangjia) badgeHtml = '<div class="holiday-badge">休</div>'; 
                 else if (tiaoxiu.isJiaban) badgeHtml = '<div class="workday-badge">班</div>'; 
-                if (isDateHasShiftBadge(d.dateStr)) badgeHtml += '<div class="shift-badge">调</div>';
+                // 只有调班（工作日↔周末互调）才显示「调」字，节假日和日结不显示
+                if (rec && rec.swapped === true && rec.type !== "holiday" && rec.type !== "salary") {
+                    badgeHtml += '<div class="shift-badge">调</div>';
+                }
                 let displayHtml = ''; 
                 if (rec) { 
                     let tag = getShiftTag(rec); 
@@ -4309,7 +4317,8 @@
         
         let finalType = currentType;
         let isSwapped = false;
-        if (currentShift !== "休息" && currentType !== "salary") {
+        // 只有工作日↔周末互调才标记为调班，节假日和日结不标记调字
+        if (currentShift !== "休息" && currentType !== "salary" && currentType !== "holiday") {
             let defaultType = getDefaultTypeByDate(selectedDate, getTiaoxiu(currentYear, selectedDate));
             if (currentType !== defaultType) {
                 isSwapped = true;
@@ -4594,6 +4603,7 @@
         
         updateAppVersion();
         
+        // 版本更新提示在刷新后显示
         checkVersionUpdate();
         
         document.getElementById("closeRemarkModal").onclick = closeRemarkModal;
