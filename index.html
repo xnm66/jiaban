@@ -622,14 +622,14 @@
             font-weight: 600;
         }
         
-        /* 版本更新弹窗 */
+        /* 简洁版本更新弹窗 */
         .version-update-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.6);
+            background: rgba(0,0,0,0.5);
             z-index: 9999;
             display: none;
             justify-content: center;
@@ -641,9 +641,9 @@
         .version-update-box {
             background: #fff;
             border-radius: 16px;
-            padding: 30px 24px 24px;
-            max-width: 320px;
-            width: 85%;
+            padding: 28px 24px 24px;
+            max-width: 280px;
+            width: 80%;
             text-align: center;
             box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             animation: popIn 0.3s ease;
@@ -652,11 +652,15 @@
             from { transform: scale(0.8); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
         }
-        .version-update-box .icon { font-size: 2.4rem; margin-bottom: 8px; }
-        .version-update-box .title { font-size: 1rem; font-weight: 700; color: #1f2d3d; }
-        .version-update-box .desc { font-size: 0.75rem; color: #909399; margin: 6px 0 16px; }
-        .version-update-box .countdown { font-size: 2.8rem; font-weight: 700; color: #66b3ff; }
-        .version-update-box .hint { font-size: 0.6rem; color: #c0c4cc; margin-top: 8px; }
+        .version-update-box .icon { font-size: 2.4rem; margin-bottom: 6px; }
+        .version-update-box .title { font-size: 0.9rem; font-weight: 600; color: #1f2d3d; }
+        .version-update-box .countdown {
+            font-size: 3.2rem;
+            font-weight: 700;
+            color: #66b3ff;
+            margin-top: 4px;
+        }
+        .version-update-box .hint { font-size: 0.55rem; color: #c0c4cc; margin-top: 2px; }
         
         .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
         .date-picker-modal { width: 260px; background: #fff; border-radius: 10px; overflow: hidden; }
@@ -1861,7 +1865,6 @@
     <div class="version-update-box">
         <div class="icon">🚀</div>
         <div class="title">发现新版本 <span id="newVersionText">1.8.1</span></div>
-        <div class="desc">更新缓存已就绪，即将自动刷新</div>
         <div class="countdown" id="countdownNum">5</div>
         <div class="hint">倒计时结束后自动更新</div>
     </div>
@@ -1922,7 +1925,6 @@
     
     // ==================== 版本更新检测（点击版本号触发） ====================
     function getCurrentAppVersion() {
-        // 从缓存名称获取
         let version = APP_VERSION;
         try {
             const el = document.getElementById("appVersion");
@@ -1947,12 +1949,10 @@
                     return;
                 }
                 
-                // 获取最新版本
                 const sorted = versions.sort();
                 const latest = sorted[sorted.length - 1];
                 
                 if (latest && latest !== currentVersion) {
-                    // 发现新版本，显示倒计时弹窗
                     showUpdateDialog(latest);
                 } else {
                     showToast("已是最新版本 ✅");
@@ -1985,7 +1985,6 @@
     }
     
     function doUpdate() {
-        // 让 Service Worker 跳过等待，激活新版本
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
                 for (const reg of registrations) {
@@ -1995,7 +1994,6 @@
                 }
             });
         }
-        // 刷新页面
         window.location.reload(true);
     }
     
@@ -2299,7 +2297,7 @@
         return workdayCount;
     }
     
-    // 全勤奖：有事假/病假直接归零，薪假计入出勤，日结不影响，按比例且封顶
+    // ==================== 全勤奖计算（修复薪假计入） ====================
     function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
@@ -2316,16 +2314,15 @@
         let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
         for (let r of records) {
             if (r.date >= monthStart && r.date <= monthEnd) {
-                // 调班后的类型是 workday
-                if (r.type === "workday") {
-                    // 薪假计入，日结不计入，正常上班计入
-                    if (r.shift === "休息" && r.type === "paid") {
-                        actualWorkdays++; // 薪假计入
-                    } else if (r.shift !== "休息") {
-                        actualWorkdays++; // 正常上班计入
-                    }
-                    // 日结（salary）不影响全勤，不计入
+                // 正常上班（workday）算
+                if (r.type === "workday" && r.shift !== "休息") {
+                    actualWorkdays++;
                 }
+                // 薪假（paid）算
+                if (r.type === "paid") {
+                    actualWorkdays++;
+                }
+                // 日结（salary）不影响全勤，不计入
             }
         }
         
@@ -2350,10 +2347,6 @@
                 else usedDays = Math.min(attendanceDays, item.dayCount || 0);
                 item.currentDays = usedDays;
                 let calculated = Math.round(dailyRate * usedDays);
-                // 封顶：不能超过设定总额（按月计算时）
-                let maxAmount = item.amount || 0;
-                if (item.maxAmount !== undefined) maxAmount = item.maxAmount;
-                // 如果按天计算，总额 = dayPrice * 应出勤天数
                 let totalCap = item.dayPrice * getRequiredWorkdaysForMonth(year, month);
                 item.amount = Math.min(calculated, totalCap);
             }
