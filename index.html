@@ -237,7 +237,6 @@
         .shift-tag.day { background: #66b3ff; color: white; }
         .shift-tag.night { background: #6c757d; color: white; }
         .shift-tag.rest { background: #b0b3b8; color: white; }
-        .shift-tag.vacation { background: #b0b3b8; color: white; }
         .shift-tag.personal { background: #f5b7b1; color: white; }
         .shift-tag.sick { background: #c39bd3; color: white; }
         .shift-tag.paid { background: #f5a623; color: white; }
@@ -622,45 +621,45 @@
             font-weight: 600;
         }
         
-        /* 简洁版本更新弹窗 */
-        .version-update-overlay {
+        /* 底部胶囊版本更新提示 */
+        .version-toast {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #66b3ff;
+            color: white;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            z-index: 2000;
+            box-shadow: 0 4px 12px rgba(102,179,255,0.4);
             display: none;
-            justify-content: center;
             align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            max-width: 90%;
+            animation: slideUp 0.3s ease;
+            pointer-events: none;
         }
-        .version-update-overlay.show {
-            display: flex;
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
-        .version-update-box {
-            background: #fff;
-            border-radius: 16px;
-            padding: 28px 24px 24px;
-            max-width: 280px;
-            width: 80%;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            animation: popIn 0.3s ease;
-        }
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-        .version-update-box .icon { font-size: 2.4rem; margin-bottom: 6px; }
-        .version-update-box .title { font-size: 0.9rem; font-weight: 600; color: #1f2d3d; }
-        .version-update-box .countdown {
-            font-size: 3.2rem;
+        .version-toast .countdown-num {
             font-weight: 700;
-            color: #66b3ff;
-            margin-top: 4px;
+            font-size: 0.8rem;
+            min-width: 18px;
+            display: inline-block;
+            text-align: center;
         }
-        .version-update-box .hint { font-size: 0.55rem; color: #c0c4cc; margin-top: 2px; }
         
         .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
         .date-picker-modal { width: 260px; background: #fff; border-radius: 10px; overflow: hidden; }
@@ -1861,13 +1860,10 @@
 </div>
 
 <div id="swapTimeModal" class="unified-modal"></div>
-<div id="versionUpdateOverlay" class="version-update-overlay">
-    <div class="version-update-box">
-        <div class="icon">🚀</div>
-        <div class="title">发现新版本 <span id="newVersionText">1.8.1</span></div>
-        <div class="countdown" id="countdownNum">5</div>
-        <div class="hint">倒计时结束后自动更新</div>
-    </div>
+
+<!-- 底部胶囊版本更新提示 -->
+<div class="version-toast" id="versionToast">
+    📦 发现新版本 <span id="newVersionText">1.8.1</span> 即将更新 <span class="countdown-num" id="countdownNum">5</span>s
 </div>
 
 <div id="toastMsg" class="toast"></div>
@@ -1953,7 +1949,7 @@
                 const latest = sorted[sorted.length - 1];
                 
                 if (latest && latest !== currentVersion) {
-                    showUpdateDialog(latest);
+                    showUpdateToast(latest);
                 } else {
                     showToast("已是最新版本 ✅");
                 }
@@ -1965,10 +1961,10 @@
         }
     }
     
-    function showUpdateDialog(newVersion) {
-        const overlay = document.getElementById("versionUpdateOverlay");
+    function showUpdateToast(newVersion) {
+        const toast = document.getElementById("versionToast");
         document.getElementById("newVersionText").innerText = newVersion;
-        overlay.classList.add("show");
+        toast.style.display = "flex";
         
         let countdown = 5;
         const countdownEl = document.getElementById("countdownNum");
@@ -1979,6 +1975,7 @@
             countdownEl.innerText = countdown;
             if (countdown <= 0) {
                 clearInterval(timer);
+                toast.style.display = "none";
                 doUpdate();
             }
         }, 1000);
@@ -2297,7 +2294,7 @@
         return workdayCount;
     }
     
-    // ==================== 全勤奖计算（修复薪假计入） ====================
+    // ==================== 全勤奖计算（薪假计入出勤天数） ====================
     function computeFullAttendanceAmountForMonth(item, year, month) {
         let fullAmount = item.fullAmount || 0;
         if (fullAmount <= 0) return 0;
@@ -2991,7 +2988,7 @@
                 else if (r.type === "salary") salaryIncome += r.amount || 0;
                 
                 if (r.shift === "休息") {
-                    if (r.type === "vacation" || r.type === "rest" || r.type === "paid") {
+                    if (r.type === "rest" || r.type === "paid") {
                         monthRestDays++;
                     }
                     if (r.type === "personal" || r.type === "sick") {
@@ -3331,11 +3328,10 @@
                 
                 if (r.shift === "休息") {
                     let hoursForDisplay = getLeaveHoursForDisplay(r);
-                    if (r.type === "vacation") vacationHours += hoursForDisplay;
+                    if (r.type === "rest") restHours += hoursForDisplay;
                     else if (r.type === "personal") { personalHours += hoursForDisplay; personalDays++; }
                     else if (r.type === "sick") { sickHours += hoursForDisplay; sickDays++; }
                     else if (r.type === "paid") paidHours += hoursForDisplay;
-                    else restHours += hoursForDisplay;
                 }
             }
         }
@@ -3423,12 +3419,12 @@
         if (!rec) return null; 
         if (rec.shift === "休息") { 
             let hours = rec.hours || 0; 
-            let typeMap = { "vacation": "休", "personal": "事", "sick": "病", "paid": "薪", "rest": "休" }; 
+            let typeMap = { "rest": "休", "personal": "事", "sick": "病", "paid": "薪" }; 
             let prefix = typeMap[rec.type] || "休"; 
-            let classMap = { "vacation": "vacation", "personal": "personal", "sick": "sick", "paid": "paid", "rest": "rest" }; 
+            let classMap = { "rest": "rest", "personal": "personal", "sick": "sick", "paid": "paid" }; 
             let tagClass = classMap[rec.type] || "rest"; 
             if (hours > 0) return { text: `${prefix} ${hours.toFixed(1)}h`, class: tagClass }; 
-            let nameMap = { "vacation": "休假", "personal": "事假", "sick": "病假", "paid": "薪假", "rest": "休息" }; 
+            let nameMap = { "rest": "休息", "personal": "事假", "sick": "病假", "paid": "薪假" }; 
             return { text: nameMap[rec.type] || "休息", class: tagClass }; 
         } 
         if (rec.type === "salary") return { text: `¥${Math.round(rec.amount || 0)}`, class: "salary" }; 
@@ -4035,7 +4031,7 @@
         if (!rec) bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span class="no-record-text">暂无记录</span></div><button class="action-btn" id="addRecordBtn"><span class="plus-icon">+</span>记加班</button></div>`;
         else if (rec.type === "salary") bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>日结</span><span class="hours-value">${formatMoney(rec.amount || 0, false)}元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`;
         else if (rec.shift === "休息") { 
-            let typeName = rec.type === "vacation" ? "休假" : (rec.type === "personal" ? "事假" : (rec.type === "sick" ? "病假" : (rec.type === "paid" ? "薪假" : "休息"))); 
+            let typeName = rec.type === "rest" ? "休息" : (rec.type === "personal" ? "事假" : (rec.type === "sick" ? "病假" : (rec.type === "paid" ? "薪假" : "休息"))); 
             let displayHours = getLeaveHoursForDisplay(rec);
             bottom.innerHTML = `<div class="detail-row"><div class="left-info"><div class="gregorian-date">${month}月${day}日</div><div class="bottom-lunar-date">${displayText}</div></div><div class="center-info"><span>${typeName}</span><span class="hours-value">${displayHours.toFixed(1)}小时</span><span class="amount-value">0元</span></div><button class="edit-btn" id="editRecordBtn">修改</button></div>`; 
         } else { 
@@ -4064,8 +4060,14 @@
         const typeFormLabel = document.getElementById("typeFormLabel"); 
         if (currentShift === "休息") { 
             typeFormLabel.innerText = "请假类型"; 
-            typeNav.innerHTML = `<div class="type-nav-item" data-type="vacation">休假</div><div class="type-nav-item" data-type="personal">事假</div><div class="type-nav-item" data-type="sick">病假</div><div class="type-nav-item" data-type="paid">薪假</div><div class="type-nav-item" data-type="rest">休息</div>`; 
-            if (!["vacation","personal","sick","paid","rest"].includes(currentType)) currentType = "vacation"; 
+            // 只保留：休息、事假、病假、薪假（去掉休假）
+            typeNav.innerHTML = `
+                <div class="type-nav-item" data-type="rest">休息</div>
+                <div class="type-nav-item" data-type="personal">事假</div>
+                <div class="type-nav-item" data-type="sick">病假</div>
+                <div class="type-nav-item" data-type="paid">薪假</div>
+            `; 
+            if (!["rest","personal","sick","paid"].includes(currentType)) currentType = "rest"; 
             document.getElementById("timeLabel").innerText = "请假时长"; 
         } else { 
             typeFormLabel.innerText = "加班类型"; 
@@ -4424,7 +4426,7 @@
                 <div class="detail-row-double"><div class="detail-col"><span class="detail-label">出勤天数</span><span class="detail-amount">${stats.attendanceDays} 天</span></div><div class="detail-col"><span class="detail-label">缺勤天数</span><span class="detail-amount">${stats.absentDays} 天</span></div></div>
                 <div class="detail-row-item"><span class="detail-label">白班天数</span><span class="detail-amount">${dayShiftDays} 天</span></div>
                 <div class="detail-row-item"><span class="detail-label">夜班天数</span><span class="detail-amount">${nightShiftDays} 天</span></div>
-                <div class="detail-row-item"><span class="detail-label">休假</span><span class="detail-amount">${stats.vacationHours.toFixed(1)} 小时</span></div>
+                <div class="detail-row-item"><span class="detail-label">休息</span><span class="detail-amount">${stats.restHours.toFixed(1)} 小时</span></div>
                 <div class="detail-row-item"><span class="detail-label">事假</span><span class="detail-amount">${stats.personalHours.toFixed(1)} 小时</span></div>
                 <div class="detail-row-item"><span class="detail-label">病假</span><span class="detail-amount">${stats.sickHours.toFixed(1)} 小时</span></div>
                 <div class="detail-row-item last-detail"><span class="detail-label">薪假</span><span class="detail-amount">${stats.paidHours.toFixed(1)} 小时</span></div>
