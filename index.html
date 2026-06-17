@@ -2174,7 +2174,7 @@
     
     function z_getAutoDays() { return z_getAutoDaysForMonth(currentYear, currentMonth); }
     
-    // 上班天数（统一：只要shift不是休息都算，包含日结）
+    // ==================== 上班天数统计（含日结） ====================
     function getAttendanceDaysForMonth(year, month) {
         let days = 0;
         let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -2340,12 +2340,13 @@
             }
             if (item.calcType === 'day') {
                 let dailyRate = item.dayPrice || 0, usedDays = 0;
-                if (item.autoDays === true) usedDays = (item.name === '夜班补贴') ? nightDays : attendanceDays;
-                else usedDays = Math.min(attendanceDays, item.dayCount || 0);
+                if (item.autoDays === true) {
+                    usedDays = (item.name === '夜班补贴') ? nightDays : attendanceDays;
+                } else {
+                    usedDays = Math.min(attendanceDays, item.dayCount || 0);
+                }
                 item.currentDays = usedDays;
-                let calculated = Math.round(dailyRate * usedDays);
-                let totalCap = item.dayPrice * getRequiredWorkdaysForMonth(year, month);
-                item.amount = Math.min(calculated, totalCap);
+                item.amount = Math.round(dailyRate * usedDays);
             }
         }
         
