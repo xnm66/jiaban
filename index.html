@@ -609,56 +609,34 @@
             color: #606266;
             min-height: 48px;
             cursor: pointer;
+            transition: all 0.1s;
         }
         .version-card:active { background: #f5f7fa; }
         .version-label {
             font-weight: 600;
             color: #909399;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .version-number {
             font-family: monospace;
             color: #66b3ff;
             font-weight: 600;
         }
-        
-        /* 底部胶囊版本更新提示 */
-        .version-toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #66b3ff;
-            color: white;
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-size: 0.7rem;
+        .version-status {
+            font-size: 0.65rem;
+            color: #66b3ff;
             font-weight: 500;
-            z-index: 2000;
-            box-shadow: 0 4px 12px rgba(102,179,255,0.4);
-            display: none;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            max-width: 90%;
-            animation: slideUp 0.3s ease;
-            pointer-events: none;
-        }
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-            }
-        }
-        .version-toast .countdown-num {
-            font-weight: 700;
-            font-size: 0.8rem;
-            min-width: 18px;
-            display: inline-block;
+            flex: 1;
             text-align: center;
+            transition: all 0.2s;
+        }
+        .version-status.success {
+            color: #52c41a;
+        }
+        .version-status.updating {
+            color: #fa8c16;
         }
         
         .modal-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
@@ -1613,6 +1591,7 @@
             
             <div class="version-card" id="versionCard">
                 <span class="version-label">📦 当前版本</span>
+                <span class="version-status" id="versionStatus"></span>
                 <span class="version-number" id="appVersion">获取中...</span>
             </div>
 
@@ -1861,11 +1840,6 @@
 
 <div id="swapTimeModal" class="unified-modal"></div>
 
-<!-- 底部胶囊版本更新提示 -->
-<div class="version-toast" id="versionToast">
-    📦 发现新版本 <span id="newVersionText">1.8.1</span> 即将更新 <span class="countdown-num" id="countdownNum">5</span>s
-</div>
-
 <div id="toastMsg" class="toast"></div>
 
 <script>
@@ -1918,6 +1892,8 @@
     
     // 硬编码版本号（每次发布时修改）
     const APP_VERSION = '1.8.0';
+    let versionTimer = null;
+    let updateTimer = null;
     
     // ==================== 版本更新检测（点击版本号触发） ====================
     function getCurrentAppVersion() {
@@ -1932,7 +1908,12 @@
     }
     
     function checkForUpdate() {
+        // 清除之前的计时器
+        if (versionTimer) { clearTimeout(versionTimer); versionTimer = null; }
+        if (updateTimer) { clearInterval(updateTimer); updateTimer = null; }
+        
         const currentVersion = getCurrentAppVersion();
+        const statusEl = document.getElementById("versionStatus");
         
         if ('caches' in window) {
             caches.keys().then(cacheNames => {
@@ -1941,7 +1922,12 @@
                     .map(name => name.replace('jiaban-', ''));
                 
                 if (versions.length === 0) {
-                    showToast("未检测到缓存版本");
+                    statusEl.textContent = "未检测到缓存";
+                    statusEl.className = "version-status";
+                    versionTimer = setTimeout(() => {
+                        statusEl.textContent = "";
+                        statusEl.className = "version-status";
+                    }, 3000);
                     return;
                 }
                 
@@ -1949,36 +1935,47 @@
                 const latest = sorted[sorted.length - 1];
                 
                 if (latest && latest !== currentVersion) {
-                    showUpdateToast(latest);
+                    // 有更新，显示倒计时
+                    statusEl.textContent = "发现新版本 5s";
+                    statusEl.className = "version-status updating";
+                    let countdown = 5;
+                    updateTimer = setInterval(() => {
+                        countdown--;
+                        if (countdown > 0) {
+                            statusEl.textContent = "发现新版本 " + countdown + "s";
+                        } else {
+                            clearInterval(updateTimer);
+                            updateTimer = null;
+                            statusEl.textContent = "";
+                            statusEl.className = "version-status";
+                            doUpdate();
+                        }
+                    }, 1000);
                 } else {
-                    showToast("已是最新版本 ✅");
+                    // 已是最新版本
+                    statusEl.textContent = "已是最新版本 ✅";
+                    statusEl.className = "version-status success";
+                    versionTimer = setTimeout(() => {
+                        statusEl.textContent = "";
+                        statusEl.className = "version-status";
+                    }, 3000);
                 }
             }).catch(() => {
-                showToast("检查更新失败");
+                statusEl.textContent = "检查失败";
+                statusEl.className = "version-status";
+                versionTimer = setTimeout(() => {
+                    statusEl.textContent = "";
+                    statusEl.className = "version-status";
+                }, 3000);
             });
         } else {
-            showToast("当前浏览器不支持缓存更新");
+            statusEl.textContent = "不支持更新";
+            statusEl.className = "version-status";
+            versionTimer = setTimeout(() => {
+                statusEl.textContent = "";
+                statusEl.className = "version-status";
+            }, 3000);
         }
-    }
-    
-    function showUpdateToast(newVersion) {
-        const toast = document.getElementById("versionToast");
-        document.getElementById("newVersionText").innerText = newVersion;
-        toast.style.display = "flex";
-        
-        let countdown = 5;
-        const countdownEl = document.getElementById("countdownNum");
-        countdownEl.innerText = countdown;
-        
-        const timer = setInterval(() => {
-            countdown--;
-            countdownEl.innerText = countdown;
-            if (countdown <= 0) {
-                clearInterval(timer);
-                toast.style.display = "none";
-                doUpdate();
-            }
-        }, 1000);
     }
     
     function doUpdate() {
@@ -4703,7 +4700,7 @@
         document.getElementById("helpBtn").onclick = showHelpSubPage;
         document.getElementById("helpBackBtn").onclick = closeHelpSubPage;
         
-        // 点击版本号触发更新检测
+        // 点击版本号触发更新检测（卡片内显示）
         document.getElementById("versionCard").onclick = checkForUpdate;
         
         document.getElementById("subsidyHeader").onclick = toggleSubsidyExpand;
