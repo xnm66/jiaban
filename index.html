@@ -4043,7 +4043,7 @@
                 const isToday = (currentYear === todayYear && currentMonth === todayMonth && d.day === todayDateNum); 
                 let badgeHtml = ''; 
                 if (isStatutoryHoliday(currentYear, parseInt(d.dateStr.split('-')[1]), d.day)) {
-                    badgeHtml = '<div class="holiday-badge">法</div>';
+                    badgeHtml = '<div class="holiday-badge">假</div>';
                 } else if (lunarInfo.isStatutory || tiaoxiu.isFangjia) {
                     badgeHtml = '<div class="holiday-badge">休</div>';
                 } else if (tiaoxiu.isJiaban) {
