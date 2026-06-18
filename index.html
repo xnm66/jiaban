@@ -134,7 +134,6 @@
 		}
 		.current-month:active { background: rgba(0,0,0,0.1); }
 		
-		/* 星期行 - flex 布局 + space-evenly，与 grid 的 1fr 对齐 */
 		.week-row { 
 			display: flex; 
 			justify-content: space-evenly; 
@@ -149,7 +148,6 @@
 			text-align: center; 
 		}
 		
-		/* 日历网格 - grid 布局，用 margin 控制间距 */
 		.cal-grid { 
 			display: grid; 
 			grid-template-columns: repeat(7, 1fr);
@@ -543,9 +541,15 @@
 			padding: 10px 16px;
 			border-bottom: 1px solid #f0f2f5;
 			cursor: pointer;
+			transition: background 0.15s ease;
 		}
 		.subded-item:active { background: #f5f7fa; }
 		.subded-item:last-child { border-bottom: none; }
+		/* 长按删除高亮效果 */
+		.subded-item.long-press-active {
+			background: #fde8e8 !important;
+			border-left: 3px solid #f56c6c;
+		}
 		.subded-name { font-size: 0.7rem; color: #606266; }
 		.subded-amount { 
 			font-size: 0.75rem; 
@@ -565,7 +569,6 @@
 		}
 		.add-link-btn:active { background: #f5f7fa; }
 		
-		/* 可拖动的「今」按钮 */
 		.today-fab { 
 			position: fixed;
 			bottom: 160px;
@@ -1032,6 +1035,7 @@
 		}
 		.reuse-month-btn:active { transform: scale(0.97); background: #3388ee; }
 		
+		/* 修改1: 计薪方式卡片 */
 		.salary-method-card {
 			background: #fff;
 			border-radius: 12px;
@@ -1066,6 +1070,9 @@
 			margin-top: 6px;
 			text-align: left;
 			line-height: 1.4;
+			background: #f5f9ff;
+			border-radius: 6px;
+			padding: 6px 10px;
 		}
 		.method-radio {
 			position: absolute;
@@ -1348,8 +1355,7 @@
 		.help-subpage .help-content .warning {
 			color: #f56c6c;
 		}
-		
-		/* 日期标记图例样式 */
+		/* 日期标记图例 */
 		.help-subpage .help-content .legend-item {
 			display: flex;
 			align-items: center;
@@ -1506,6 +1512,18 @@
 			min-height: 300px;
 			background: #fff;
 		}
+		/* 修改4: 日历空状态引导 */
+		.calendar-placeholder .guide-text {
+			font-size: 0.75rem;
+			color: #66b3ff;
+			margin-top: 6px;
+			font-weight: 500;
+		}
+		.calendar-placeholder .guide-icon {
+			font-size: 1.8rem;
+			display: block;
+			margin-bottom: 6px;
+		}
 		
 		.edit-form-container {
 			background: #fff;
@@ -1528,9 +1546,10 @@
 <div class="container">
 	<div id="calendarPage" class="page active-page">
 		<div id="statsBarContainer" class="stats-bar" style="display: flex;">
-			<div class="stat-item" id="statOvertimeCard"><div class="stat-value"><strong id="totalOvertime">0</strong><span class="stat-unit">小时</span></div><div class="stat-label">加班时长</div></div>
+			<!-- 修改2: "加班时长" → "加班工时" -->
+			<div class="stat-item" id="statOvertimeCard"><div class="stat-value"><strong id="totalOvertime">0</strong><span class="stat-unit">小时</span></div><div class="stat-label">加班工时</div></div>
 			<div class="stat-item" id="statIncomeCard" style="position:relative;"><div class="stat-value"><strong id="monthIncome">0</strong><span class="stat-unit">元</span></div><div class="stat-label" id="monthLabel">6月工资</div><div class="mode-badge" id="modeBadge">按天计算</div></div>
-			<div class="stat-item" id="statAttendanceCard"><div class="stat-value"><strong id="attendanceDays">0</strong><span class="stat-unit">天</span></div><div class="stat-label">上班天数</div></div>
+			<div class="stat-item" id="statAttendanceCard"><div class="stat-value"><strong id="attendanceDays">0</strong><span class="stat-unit">天</span></div><div class="stat-label">出勤天数</div></div>
 		</div>
 		<div class="calendar-card">
 			<div class="title-bar"><div class="mini-title">📅 记加班<span class="small-text"> · 不错过每一份努力</span></div><div class="month-nav"><button class="month-nav-btn" id="prevMonth">‹</button><span class="current-month" id="currentMonthLabel">2026年6月</span><button class="month-nav-btn" id="nextMonth">›</button></div></div>
@@ -1614,10 +1633,11 @@
 				</div>
 			</div>
 			
+			<!-- 修改5: 版本号显示优化 - 默认显示 v1.0 -->
 			<div class="version-card" id="versionCard">
 				<span class="version-label">📦 当前版本</span>
 				<span class="version-status" id="versionStatus"></span>
-				<span class="version-number" id="appVersion">获取中...</span>
+				<span class="version-number" id="appVersion">v1.0</span>
 			</div>
 
 			<button class="reuse-month-btn" id="reuseLastMonthBtn">复用上月数据</button>
@@ -1630,7 +1650,6 @@
 	</div>
 </div>
 
-<!-- 可拖动的「今」按钮 -->
 <button class="today-fab" id="todayFab">今</button>
 
 <div id="remarkModal" class="remark-modal-mask">
@@ -1660,13 +1679,13 @@
 				<p>• <span class="highlight">多选模式</span>：选择2个日期（1个工作日+1个周末）可调班</p>
 				<p>• <span class="highlight">点击顶部横条</span>：查看工时/薪资/考勤详情</p>
 				<p>• <span class="highlight">顶部导航</span>：左右滑动或点击月份切换月份</p>
-				<p>• <span class="highlight">点击底部「今」按钮</span>：快速回到今天</p>
-				<p>• <span class="highlight">拖动「今」按钮</span>：可拖动到任意位置，不遮挡内容</p>
+				<p>• <span class="highlight">点击「今」按钮</span>：快速回到今天</p>
+				<p>• <span class="highlight">拖动「今」按钮</span>：可拖动到任意位置</p>
 				<p>• <span class="highlight">长按工资区域</span>：切换「按天计算」/「固定底薪」模式</p>
 				<p>• <span class="highlight">双击有绿色圆点的日期</span>：查看备注内容</p>
 			</div>
 		</div>
-		<!-- 新增：日期标记图例 -->
+		<!-- 日期标记图例 -->
 		<div class="help-section">
 			<div class="help-section-title">🏷️ 日期标记说明</div>
 			<div class="help-content">
@@ -1694,7 +1713,8 @@
 			<div class="help-section-title">✏️ 记录加班</div>
 			<div class="help-content">
 				<p>• <span class="highlight">班次</span>：白班/晚班/休息（<span class="warning">双击班次可锁定/解锁</span>）</p>
-				<p>• <span class="highlight">加班类型</span>：正常加班/周末加班/节假日加班/日结</p>
+				<!-- 修改3: "正常加班" → "平时加班" -->
+				<p>• <span class="highlight">加班类型</span>：平时加班/周末加班/节假日加班/日结</p>
 				<p>• <span class="highlight">时长/金额</span>：点击数字可直接输入，支持加减按钮和快捷选项</p>
 				<p>• <span class="highlight">备注</span>：可添加文字备注，有备注的日期右上角会显示绿色圆点</p>
 			</div>
@@ -1723,7 +1743,7 @@
 			<div class="help-section-title">📊 年度汇总说明</div>
 			<div class="help-content">
 				<p>• 在设置页面<span class="highlight">长按收入卡片</span>可切换到年度汇总</p>
-				<p>• 年度汇总会<span class="highlight">实时计算</span>全年总收入、加班时长、上班天数等</p>
+				<p>• 年度汇总会<span class="highlight">实时计算</span>全年总收入、加班工时、出勤天数等</p>
 				<p>• 补贴和扣款会<span class="highlight">自动累加</span>到年度总收入中</p>
 				<p>• 修改任何月份的补贴/扣款后，年度汇总<span class="highlight">立即更新</span></p>
 			</div>
@@ -1750,8 +1770,9 @@
 		<div class="overtime-section">
 			<div class="form-row"><div class="form-label" id="typeFormLabel">加班类型</div>
 			<div class="overtime-card">
+				<!-- 修改3: "正常加班" → "平时加班" -->
 				<div class="type-nav" id="typeNav">
-					<div class="type-nav-item" data-type="workday">正常加班</div>
+					<div class="type-nav-item" data-type="workday">平时加班</div>
 					<div class="type-nav-item" data-type="weekend">周末加班</div>
 					<div class="type-nav-item" data-type="holiday">节假日加班</div>
 					<div class="type-nav-item" data-type="salary">日结</div>
@@ -1846,22 +1867,23 @@
 			<div class="salary-pages-slider" id="salaryPagesSlider">
 				<div class="salary-page" id="salarySelectPageInner">
 					<div id="methodListInner">
+						<!-- 修改1: 计薪方式卡片 -->
 						<div class="salary-method-card" data-method="formal">
 							<div class="salary-method-title">正式工/合同工</div>
-							<div class="salary-method-desc">有底薪，只记录加班时长。工资=底薪+小时工资×加班时长。</div>
-							<div class="salary-method-example">例如：底薪5000元，平时加班20元/小时，共加班50小时。本月工资：5000+20×50=6000元</div>
+							<div class="salary-method-desc">有底薪，只记录加班时长。工资=底薪+加班费。</div>
+							<div class="salary-method-example">💡 例如：底薪5000元，平时加班10小时(1.5倍)，周末加班8小时(2倍)。本月工资：5000+10×43.1+8×57.5≈5881元</div>
 							<div class="method-radio"></div>
 						</div>
 						<div class="salary-method-card" data-method="hourly">
 							<div class="salary-method-title">小时工/临时工</div>
-							<div class="salary-method-desc">无底薪，加班即全部工作时长。工资=小时工资×加班时长。</div>
-							<div class="salary-method-example">例如：时薪20元/小时，一共工作400小时。本月工资：20×400=8000元</div>
+							<div class="salary-method-desc">无底薪，按实际工作时长计薪。工资=时薪×工作时长。</div>
+							<div class="salary-method-example">💡 例如：时薪25元/小时，本月工作200小时。本月工资：25×200=5000元</div>
 							<div class="method-radio"></div>
 						</div>
 						<div class="salary-method-card" data-method="comprehensive">
 							<div class="salary-method-title">综合工时</div>
 							<div class="salary-method-desc">实际时长超过月标准时长后才算加班。工资=底薪+加班时薪×加班时长。</div>
-							<div class="salary-method-example">例如：底薪5000元，月标准168小时，实际工作200小时，加班时薪30元。工资：5000+30×32=5960元</div>
+							<div class="salary-method-example">💡 例如：底薪5000元，月标准168小时，实际工作200小时，加班费按1.5倍计算。工资：5000+29.76×1.5×32≈6428元</div>
 							<div class="method-radio"></div>
 						</div>
 					</div>
@@ -1928,8 +1950,8 @@
 	let batchTypeStats = { workday: 0, weekend: 0, holiday: 0 };
 	let batchTypeMode = "auto";
 	
-	// 版本号变量 - 不硬编码，从 sw.js 获取
-	let APP_VERSION = '获取中...';
+	// 版本号变量 - 从 sw.js 获取，默认 v1.0
+	let APP_VERSION = 'v1.0';
 	let versionTimer = null;
 	let updateTimer = null;
 	let navLongPressTimer = null;
@@ -1939,24 +1961,19 @@
 		let holidays = [];
 		if (typeof Lunar === 'undefined') return holidays;
 		
-		// 1. 元旦（固定）
 		holidays.push(`${year}-01-01`);
 		
-		// 2. 春节（除夕、正月初一、初二、初三）
 		try {
 			const lunar = Lunar.fromYmd(year, 1, 1);
 			const solar = lunar.getSolar();
-			// 除夕
 			const prevDay = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay() - 1);
 			holidays.push(`${prevDay.getFullYear()}-${String(prevDay.getMonth() + 1).padStart(2, '0')}-${String(prevDay.getDate()).padStart(2, '0')}`);
-			// 正月初一、初二、初三
 			for (let i = 0; i < 3; i++) {
 				const d = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay() + i);
 				holidays.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
 			}
 		} catch(e) {}
 		
-		// 3. 清明（节气）
 		try {
 			const lunar = Lunar.fromYmd(year, 1, 1);
 			const jieQi = lunar.getJieQiTable();
@@ -1966,25 +1983,21 @@
 			}
 		} catch(e) {}
 		
-		// 4. 劳动节（固定）
 		holidays.push(`${year}-05-01`);
 		holidays.push(`${year}-05-02`);
 		
-		// 5. 端午（农历五月初五）
 		try {
 			const lunar = Lunar.fromYmd(year, 5, 5);
 			const solar = lunar.getSolar();
 			holidays.push(`${solar.getYear()}-${String(solar.getMonth()).padStart(2, '0')}-${String(solar.getDay()).padStart(2, '0')}`);
 		} catch(e) {}
 		
-		// 6. 中秋（农历八月十五）
 		try {
 			const lunar = Lunar.fromYmd(year, 8, 15);
 			const solar = lunar.getSolar();
 			holidays.push(`${solar.getYear()}-${String(solar.getMonth()).padStart(2, '0')}-${String(solar.getDay()).padStart(2, '0')}`);
 		} catch(e) {}
 		
-		// 7. 国庆（固定）
 		holidays.push(`${year}-10-01`);
 		holidays.push(`${year}-10-02`);
 		holidays.push(`${year}-10-03`);
@@ -1998,12 +2011,12 @@
 		return holidays.includes(dateStr);
 	}
 	
-	// ==================== 版本更新检测（点击版本号触发） ====================
+	// ==================== 版本更新检测 ====================
 	function getCurrentAppVersion() {
 		let version = APP_VERSION;
 		try {
 			const el = document.getElementById("appVersion");
-			if (el && el.innerText && el.innerText !== "获取中...") {
+			if (el && el.innerText && el.innerText !== "获取中..." && el.innerText !== "v1.0") {
 				version = el.innerText;
 			}
 		} catch(e) {}
@@ -2033,8 +2046,9 @@
 				
 				const sorted = versions.sort();
 				const latest = sorted[sorted.length - 1];
+				const latestWithV = 'v' + latest;
 				
-				if (latest && latest !== currentVersion) {
+				if (latest && latestWithV !== currentVersion) {
 					statusEl.textContent = "发现新版本 5s";
 					let countdown = 5;
 					updateTimer = setInterval(() => {
@@ -2121,7 +2135,6 @@
 	// ==================== 判断日期类型 ====================
 	function getDefaultTypeByDate(dateStr, tiaoxiu) { 
 		let [year, month, day] = dateStr.split('-').map(Number); 
-		// 优先判断法定节假日（13天3倍）
 		if (isStatutoryHoliday(year, month, day)) return "holiday";
 		let isHoliday = isStatutoryHoliday(year, month, day);
 		if (isHoliday) return "holiday"; 
@@ -2136,7 +2149,6 @@
 	function getDefaultTypeForDate(dateStr) {
 		let [year, month, day] = dateStr.split('-').map(Number);
 		let tiaoxiu = getTiaoxiu(year, dateStr);
-		// 优先判断法定节假日（13天3倍）
 		if (isStatutoryHoliday(year, month, day)) return "holiday";
 		if (tiaoxiu.isFangjia) return "weekend";
 		if (tiaoxiu.isJiaban) return "workday";
@@ -2153,7 +2165,7 @@
 				const cacheNames = await caches.keys();
 				const jiabanCache = cacheNames.find(name => name.startsWith('jiaban-'));
 				if (jiabanCache) {
-					const version = jiabanCache.replace('jiaban-', '');
+					const version = 'v' + jiabanCache.replace('jiaban-', '');
 					APP_VERSION = version;
 					document.getElementById('appVersion').innerText = version;
 					localStorage.setItem('appVersion', version);
@@ -2161,14 +2173,14 @@
 				}
 			}
 			const savedVersion = localStorage.getItem('appVersion');
-			if (savedVersion && savedVersion !== '获取中...') {
+			if (savedVersion && savedVersion !== '获取中...' && savedVersion !== 'v1.0') {
 				APP_VERSION = savedVersion;
 				document.getElementById('appVersion').innerText = savedVersion;
 			} else {
-				document.getElementById('appVersion').innerText = '未知';
+				document.getElementById('appVersion').innerText = 'v1.0';
 			}
 		} catch(e) {
-			document.getElementById('appVersion').innerText = '未知';
+			document.getElementById('appVersion').innerText = 'v1.0';
 		}
 	}
 	
@@ -2289,7 +2301,6 @@
 	
 	function z_getAutoDays() { return z_getAutoDaysForMonth(currentYear, currentMonth); }
 	
-	// ==================== 上班天数统计（含日结） ====================
 	function getAttendanceDaysForMonth(year, month) {
 		let days = 0;
 		let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -2302,7 +2313,6 @@
 		return days;
 	}
 	
-	// 实际上班天数（用于显示，同样规则）
 	function getActualWorkdays() {
 		let days = 0;
 		let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
@@ -2336,7 +2346,6 @@
 		return true;
 	}
 	
-	// 判断是否有事假或病假（全勤奖扣发条件）
 	function hasPersonalOrSickLeaveForMonth(year, month) {
 		let daysInMonth = new Date(year, month + 1, 0).getDate();
 		for (let d = 1; d <= daysInMonth; d++) {
@@ -2358,7 +2367,6 @@
 	function z_escape(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;'); }
 	function z_showToast(msg) { showToast(msg); }
 	
-	// 获取工作日出勤天数（用于底薪计算）- 只统计 type 为 workday 的记录
 	function getWorkdayAttendanceForSalary() {
 		let days = 0;
 		let monthStart = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-01`;
@@ -2373,7 +2381,6 @@
 		return days;
 	}
 	
-	// ==================== 应出勤工作日（全勤奖分母）正确判断班字/休字/调字/法定节假日 ====================
 	function getRequiredWorkdaysForMonth(year, month) {
 		let daysInMonth = new Date(year, month + 1, 0).getDate();
 		let workdayCount = 0;
@@ -2382,29 +2389,18 @@
 			let dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 			let tiaoxiu = getTiaoxiu(year, dateStr);
 			
-			// 1. 法定节假日 → 不算应出勤（13天）
 			if (isStatutoryHoliday(year, month + 1, d)) continue;
-			
-			// 2. 国家调休「休字」→ 不算应出勤
 			if (tiaoxiu.isFangjia) continue;
-			
-			// 3. 法定节假日（补判断）
 			if (isStatutoryHoliday(year, month + 1, d)) continue;
-			
-			// 4. 国家调休「班字」→ 算应出勤
 			if (tiaoxiu.isJiaban) {
 				workdayCount++;
 				continue;
 			}
-			
-			// 5. 工厂调班「调字」→ 按调班后的类型判断（只有 workday 算应出勤）
 			let rec = getDayRecords(dateStr)[0];
 			if (rec && rec.swapped === true) {
 				if (rec.type === "workday") workdayCount++;
 				continue;
 			}
-			
-			// 6. 正常情况：工作日算，周末不算
 			let date = new Date(year, month, d);
 			let dayOfWeek = date.getDay();
 			if (dayOfWeek !== 0 && dayOfWeek !== 6) workdayCount++;
@@ -2412,35 +2408,25 @@
 		return workdayCount;
 	}
 	
-	// ==================== 全勤奖计算（薪假计入出勤天数） ====================
 	function computeFullAttendanceAmountForMonth(item, year, month) {
 		let fullAmount = item.fullAmount || 0;
 		if (fullAmount <= 0) return 0;
-		
-		// 检查是否有事假或病假 → 全勤归零
 		if (hasPersonalOrSickLeaveForMonth(year, month)) return 0;
-		
 		let requiredWorkdays = getRequiredWorkdaysForMonth(year, month);
 		if (requiredWorkdays === 0) return 0;
-		
-		// 实际出勤的工作日天数（薪假计入，日结不计入）
 		let actualWorkdays = 0;
 		let monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`;
 		let monthEnd = `${year}-${String(month + 1).padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
 		for (let r of records) {
 			if (r.date >= monthStart && r.date <= monthEnd) {
-				// 正常上班（workday）算
 				if (r.type === "workday" && r.shift !== "休息") {
 					actualWorkdays++;
 				}
-				// 薪假（paid）算
 				if (r.type === "paid") {
 					actualWorkdays++;
 				}
-				// 日结（salary）不影响全勤，不计入
 			}
 		}
-		
 		let dailyRate = fullAmount / requiredWorkdays;
 		let result = Math.round(dailyRate * actualWorkdays);
 		return Math.min(result, fullAmount);
@@ -2512,6 +2498,7 @@
 		document.getElementById('z_delModal').style.display = 'flex';
 	}
 	
+	// ==================== 渲染补贴/扣款列表（含长按高亮） ====================
 	function renderSettingsAllowancesDeductions() {
 		recalcDayBasedAllowances();
 		let subTotal = settingsAllowances.reduce((s, a) => s + (a.amount || 0), 0);
@@ -2527,9 +2514,34 @@
 		document.querySelectorAll("#settingsSubsidyList .subded-item").forEach(el => {
 			let idx = parseInt(el.dataset.idx);
 			el.onclick = (e) => { e.stopPropagation(); z_editSubsidyItem(idx); };
-			el.ontouchstart = (e) => { e.stopPropagation(); z_startTimer(() => z_showDeleteConfirm(`确定删除补贴「${settingsAllowances[idx].name}」吗？`, () => { settingsAllowances.splice(idx, 1); z_saveSubDed(); })); };
-			el.ontouchend = z_cancelTimer;
-			el.ontouchmove = z_cancelTimer;
+			// 修改7: 长按删除优化 - 背景变红 + 震动
+			el.ontouchstart = (e) => { 
+				e.stopPropagation(); 
+				el.classList.add('long-press-active');
+				if (navigator.vibrate) navigator.vibrate(30);
+				z_startTimer(() => {
+					el.classList.remove('long-press-active');
+					z_showDeleteConfirm(`确定删除补贴「${settingsAllowances[idx].name}」吗？`, () => { settingsAllowances.splice(idx, 1); z_saveSubDed(); });
+				}); 
+			};
+			el.ontouchend = (e) => { 
+				el.classList.remove('long-press-active');
+				z_cancelTimer(); 
+			};
+			el.ontouchmove = (e) => { 
+				el.classList.remove('long-press-active');
+				z_cancelTimer(); 
+			};
+			// 鼠标支持
+			el.onmousedown = (e) => {
+				el.classList.add('long-press-active');
+				z_startTimer(() => {
+					el.classList.remove('long-press-active');
+					z_showDeleteConfirm(`确定删除补贴「${settingsAllowances[idx].name}」吗？`, () => { settingsAllowances.splice(idx, 1); z_saveSubDed(); });
+				});
+			};
+			el.onmouseup = () => { el.classList.remove('long-press-active'); z_cancelTimer(); };
+			el.onmouseleave = () => { el.classList.remove('long-press-active'); z_cancelTimer(); };
 		});
 		
 		let dedHtml = '';
@@ -2540,14 +2552,36 @@
 		document.querySelectorAll("#settingsDeductionList .subded-item").forEach(el => {
 			let idx = parseInt(el.dataset.idx);
 			el.onclick = (e) => { e.stopPropagation(); z_editDeductionItem(idx); };
-			el.ontouchstart = (e) => { e.stopPropagation(); z_startTimer(() => z_showDeleteConfirm(`确定删除扣款「${settingsDeductions[idx].name}」吗？`, () => { settingsDeductions.splice(idx, 1); z_saveSubDed(); })); };
-			el.ontouchend = z_cancelTimer;
-			el.ontouchmove = z_cancelTimer;
+			el.ontouchstart = (e) => { 
+				e.stopPropagation(); 
+				el.classList.add('long-press-active');
+				if (navigator.vibrate) navigator.vibrate(30);
+				z_startTimer(() => {
+					el.classList.remove('long-press-active');
+					z_showDeleteConfirm(`确定删除扣款「${settingsDeductions[idx].name}」吗？`, () => { settingsDeductions.splice(idx, 1); z_saveSubDed(); });
+				}); 
+			};
+			el.ontouchend = (e) => { 
+				el.classList.remove('long-press-active');
+				z_cancelTimer(); 
+			};
+			el.ontouchmove = (e) => { 
+				el.classList.remove('long-press-active');
+				z_cancelTimer(); 
+			};
+			el.onmousedown = (e) => {
+				el.classList.add('long-press-active');
+				z_startTimer(() => {
+					el.classList.remove('long-press-active');
+					z_showDeleteConfirm(`确定删除扣款「${settingsDeductions[idx].name}」吗？`, () => { settingsDeductions.splice(idx, 1); z_saveSubDed(); });
+				});
+			};
+			el.onmouseup = () => { el.classList.remove('long-press-active'); z_cancelTimer(); };
+			el.onmouseleave = () => { el.classList.remove('long-press-active'); z_cancelTimer(); };
 		});
 		
 		updateSubsidyExpandState();
 		updateDeductionExpandState();
-		
 		updateIncomeCardDisplay();
 	}
 	
@@ -3656,7 +3690,7 @@
 		});
 	}
 	
-	// ==================== 多选调班（两个日期互换） ====================
+	// ==================== 多选调班 ====================
 	function showSwapStep1() {
 		let dates = Array.from(selectedDatesSet);
 		let workdayDate = getDefaultTypeForDate(dates[0]) === "workday" ? dates[0] : dates[1];
@@ -4044,12 +4078,20 @@
 		document.getElementById("drawerMask").style.display = "block";
 	}
 	
+	// ==================== 渲染日历 ====================
 	function renderCalendar() { 
 		let hasSalaryConfig = globalSalaryConfigured || (baseSalary > 0 && currentSalaryMethodName !== "暂未设置计薪方式");
 		if (!hasSalaryConfig) {
 			document.getElementById("calendarGrid").style.display = "none";
 			document.getElementById("calendarLoading").style.display = "flex";
-			document.getElementById("calendarLoading").innerHTML = "请在设置页面中设置薪资方式";
+			// 修改4: 日历空状态引导
+			document.getElementById("calendarLoading").innerHTML = `
+				<div style="text-align:center;">
+					<div class="guide-icon">📌</div>
+					<div>请先设置薪资方式</div>
+					<div class="guide-text">点击下方「设置」→「计薪方式」开始配置</div>
+				</div>
+			`;
 			document.getElementById("calendarLoading").className = "calendar-placeholder";
 			document.getElementById("bottomDetail").innerHTML = '';
 			return;
@@ -4191,7 +4233,8 @@
 			document.getElementById("timeLabel").innerText = "请假时长"; 
 		} else { 
 			typeFormLabel.innerText = "加班类型"; 
-			typeNav.innerHTML = `<div class="type-nav-item" data-type="workday">正常加班</div><div class="type-nav-item" data-type="weekend">周末加班</div><div class="type-nav-item" data-type="holiday">节假日加班</div><div class="type-nav-item" data-type="salary">日结</div>`; 
+			// 修改3: 只改"正常加班" → "平时加班"，"周末加班"保持不变
+			typeNav.innerHTML = `<div class="type-nav-item" data-type="workday">平时加班</div><div class="type-nav-item" data-type="weekend">周末加班</div><div class="type-nav-item" data-type="holiday">节假日加班</div><div class="type-nav-item" data-type="salary">日结</div>`; 
 			if (!["workday","weekend","holiday","salary"].includes(currentType)) currentType = "workday"; 
 			document.getElementById("timeLabel").innerText = "加班时长"; 
 		} 
@@ -4469,7 +4512,6 @@
 		
 		let finalType = currentType;
 		let isSwapped = false;
-		// 只有工作日↔周末互调才标记为调班，节假日和日结不标记调字
 		if (currentShift !== "休息" && currentType !== "salary" && currentType !== "holiday") {
 			let defaultType = getDefaultTypeByDate(selectedDate, getTiaoxiu(currentYear, selectedDate));
 			if (currentType !== defaultType) {
@@ -4628,11 +4670,9 @@
 			const solar = lunar.getSolar();
 			const startDate = new Date(solar.getYear(), solar.getMonth() - 1, solar.getDay());
 			const days = [];
-			// 除夕
 			const prevDay = new Date(startDate);
 			prevDay.setDate(startDate.getDate() - 1);
 			days.push(`${prevDay.getMonth()+1}-${prevDay.getDate()}`);
-			// 正月初一、初二、初三
 			for (let i = 0; i < 3; i++) {
 				const d = new Date(startDate);
 				d.setDate(startDate.getDate() + i);
@@ -4662,7 +4702,6 @@
 		} catch(e) { return null; }
 	}
 	function isStatutoryHoliday(year, month, day) {
-		// 优先使用动态获取的法定节假日
 		const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 		const holidays = getStatutoryHolidays(year);
 		return holidays.includes(dateStr);
@@ -4670,9 +4709,7 @@
 	
 	function waitForLunar() { return new Promise((resolve) => { if (typeof Lunar !== 'undefined') resolve(); else { let interval = setInterval(() => { if (typeof Lunar !== 'undefined') { clearInterval(interval); resolve(); } }, 100); setTimeout(() => { clearInterval(interval); resolve(); }, 3000); } }); }
 	
-	function getLunarInfo(year, month, day) { try { if (typeof Lunar === 'undefined') return { lunarStr: "加载中", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; const date = new Date(year, month-1, day); const lunar = Lunar.fromDate(date); const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']; const festivals = [...new Set([...lunar.getFestivals(), ...lunar.getSolar().getFestivals()])]; // 法定节假日用动态判断
-		let isStatutory = isStatutoryHoliday(year, month, day);
-		return { lunarStr: `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`, jieqi: lunar.getJieQi() || '', festivals, isStatutory: isStatutory, weekday: weekdays[date.getDay()] }; } catch(e) { return { lunarStr: "", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; } }
+	function getLunarInfo(year, month, day) { try { if (typeof Lunar === 'undefined') return { lunarStr: "加载中", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; const date = new Date(year, month-1, day); const lunar = Lunar.fromDate(date); const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']; const festivals = [...new Set([...lunar.getFestivals(), ...lunar.getSolar().getFestivals()])]; let isStatutory = isStatutoryHoliday(year, month, day); return { lunarStr: `${lunar.getMonthInChinese()}月${lunar.getDayInChinese()}`, jieqi: lunar.getJieQi() || '', festivals, isStatutory: isStatutory, weekday: weekdays[date.getDay()] }; } catch(e) { return { lunarStr: "", jieqi: "", festivals: [], isStatutory: false, weekday: "" }; } }
 	function getCellDisplayList(festivals, jieqi, lunarDay) { let list = []; for (let f of festivals) if (f && f.length <= 4) list.push(f); if (jieqi && jieqi.length <= 4 && !list.includes(jieqi)) list.push(jieqi); if (list.length === 0 && lunarDay && lunarDay.length <= 4) list.push(lunarDay); return [...new Set(list)]; }
 	function getBottomDisplayText(festivals, lunarStr, weekday) { return festivals.length ? festivals[0] : `${lunarStr} · ${weekday}`; }
 	
@@ -4688,7 +4725,7 @@
 		const container = document.getElementById("editFormContainerInner");
 		let hourly = baseSalary / 21.75 / 8, html = "";
 		if (method === 'formal') {
-			html = `<div class="edit-form-field"><span class="edit-form-label">月基本工资</span><div class="edit-form-input-wrapper"><input type="number" id="editBaseSalaryInner" class="edit-form-input" placeholder="0" step="1" value="${baseSalary === 0 ? '' : baseSalary}"><span class="edit-form-unit">元/月</span></div></div><div class="edit-form-field"><span class="edit-form-label">小时工资</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">正常加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWorkdayMultiInner" class="edit-form-input" step="0.1" value="1.5"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWorkdayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 1.5).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">周末加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWeekendMultiInner" class="edit-form-input" step="0.1" value="2.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWeekendWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 2).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假日加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editHolidayMultiInner" class="edit-form-input" step="0.1" value="3.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*小时工资 = 月基本工资 ÷ 21.75天 ÷ 8小时<br>*修改底薪自动计算时薪，计算结果可手动编辑</div>`;
+			html = `<div class="edit-form-field"><span class="edit-form-label">月基本工资</span><div class="edit-form-input-wrapper"><input type="number" id="editBaseSalaryInner" class="edit-form-input" placeholder="0" step="1" value="${baseSalary === 0 ? '' : baseSalary}"><span class="edit-form-unit">元/月</span></div></div><div class="edit-form-field"><span class="edit-form-label">小时工资</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">平时加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWorkdayMultiInner" class="edit-form-input" step="0.1" value="1.5"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWorkdayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 1.5).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">周末加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editWeekendMultiInner" class="edit-form-input" step="0.1" value="2.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editWeekendWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 2).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假日加班</span><div class="edit-form-input-wrapper" style="max-width:80px"><input type="number" id="editHolidayMultiInner" class="edit-form-input" step="0.1" value="3.0"><span class="edit-form-unit">倍</span></div><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*小时工资 = 月基本工资 ÷ 21.75天 ÷ 8小时<br>*修改底薪自动计算时薪，计算结果可手动编辑</div>`;
 		} else if (method === 'hourly') {
 			html = `<div class="edit-form-field"><span class="edit-form-label">平日时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHourlyWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : hourly.toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-field"><span class="edit-form-label">节假时薪</span><div class="edit-form-input-wrapper"><input type="number" id="editHolidayWageInner" class="edit-form-input" placeholder="0" step="0.01" value="${baseSalary === 0 ? '' : (hourly * 3).toFixed(2)}"><span class="edit-form-unit">元/小时</span></div></div><div class="edit-form-hint">*节假日为劳动节、国庆节、春节等法定节假日。</div>`;
 		} else if (method === 'comprehensive') {
@@ -4829,7 +4866,6 @@
 				let left = touch.clientX - offsetX;
 				let top = touch.clientY - offsetY;
 				
-				// 边界限制
 				const maxX = window.innerWidth - fab.offsetWidth;
 				const maxY = window.innerHeight - fab.offsetHeight - 60;
 				left = Math.max(0, Math.min(left, maxX));
@@ -4845,7 +4881,6 @@
 		fab.addEventListener("touchend", function(e) {
 			fab.style.transition = '';
 			if (!hasMoved) {
-				// 没有拖动，执行点击
 				goToToday();
 			}
 			setTimeout(() => {
@@ -4854,7 +4889,6 @@
 			}, 50);
 		}, { passive: true });
 		
-		// 阻止点击事件与拖动冲突
 		fab.addEventListener('click', function(e) {
 			if (hasMoved) {
 				e.stopPropagation();
@@ -4863,6 +4897,7 @@
 		});
 	}
 	
+	// ==================== 初始化 ====================
 	async function init() {
 		salaryDisplayMode = localStorage.getItem("salaryDisplayMode") || 'prorated';
 		document.getElementById("modeBadge").innerHTML = salaryDisplayMode === 'prorated' ? '按天计算' : '固定底薪';
@@ -4881,7 +4916,6 @@
 		renderCalendar();
 		renderBottom();
 		
-		// 初始化拖动功能
 		initFabDrag();
 		
 		updateAppVersion();
